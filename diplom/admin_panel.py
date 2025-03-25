@@ -11,14 +11,29 @@ class AdminDashboard(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Панель Администратора")
-        self.geometry("500x400")
+        self.geometry("600x400")
+        self.center_window(600, 400)
 
         ctk.CTkLabel(self, text="Управление пользователями", font=("Arial", 18)).pack(pady=10)
 
         ctk.CTkButton(self, text="Просмотр пользователей", command=self.view_users).pack(pady=5)
         ctk.CTkButton(self, text="Добавить пользователя", command=self.add_user_window).pack(pady=5)
         ctk.CTkButton(self, text="Удалить пользователя", command=self.delete_user_window).pack(pady=5)
-        ctk.CTkButton(self, text="Выход", command=self.quit).pack(pady=10)
+        ctk.CTkButton(self, text="Выход", command=self.logout).pack(pady=10)
+
+    def center_window(self, width, height):
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
+    def logout(self):
+        self.destroy()
+        from login import LoginApp
+        login_window = LoginApp()
+        login_window.mainloop()
 
     def db_connect(self):
         return pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
@@ -130,38 +145,6 @@ class AdminDashboard(ctk.CTk):
         user_dropdown.pack(pady=5)
 
         ctk.CTkButton(del_window, text="Удалить", command=confirm_delete).pack(pady=10)
-
-        def delete_user():
-            user_id = entry_user_id.get()
-            if user_id:
-                conn = self.db_connect()
-                cursor = conn.cursor()
-
-                cursor.execute("SELECT role FROM users WHERE id=%s", (user_id,))
-                user = cursor.fetchone()
-
-                if not user:
-                    messagebox.showwarning("Внимание", "Пользователь не найден.")
-                    return
-
-                if user[0] == "Администратор":
-                    messagebox.showerror("Ошибка", "Нельзя удалить администратора!")
-                    return
-
-                try:
-                    cursor.execute("DELETE FROM users WHERE id=%s", (user_id,))
-                    conn.commit()
-                    if cursor.rowcount > 0:
-                        messagebox.showinfo("Успех", "Пользователь удалён.")
-                    else:
-                        messagebox.showwarning("Внимание", "Пользователь не найден.")
-                    del_window.destroy()
-                except pymysql.MySQLError:
-                    messagebox.showerror("Ошибка", "Ошибка удаления пользователя.")
-                finally:
-                    conn.close()
-            else:
-                messagebox.showwarning("Внимание", "Введите ID пользователя.")
 
 if __name__ == "__main__":
     app = AdminDashboard()

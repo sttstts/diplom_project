@@ -11,7 +11,8 @@ class LoginApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Авторизация")
-        self.geometry("400x300")
+        self.geometry("600x400")
+        self.center_window(600, 400)
 
         self.label_user = ctk.CTkLabel(self, text="Логин:")
         self.label_user.pack(pady=5)
@@ -28,6 +29,14 @@ class LoginApp(ctk.CTk):
 
         self.error_label = ctk.CTkLabel(self, text="", text_color="red")
         self.error_label.pack()
+
+    def center_window(self, width, height):
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        self.geometry(f"{width}x{height}+{x}+{y}")
 
     def login(self):
         username = self.entry_user.get()
@@ -54,7 +63,8 @@ class LoginApp(ctk.CTk):
             storekeeper_panel.StorekeeperDashboard().mainloop()
         elif role == "Бухгалтер":
             import accountant_panel
-            accountant_panel.AccountantDashboard().mainloop()
+
+            accountant_panel.AccountantDashboard().mainloop()  # Передаем корзину
 
 if __name__ == "__main__":
     app = LoginApp()

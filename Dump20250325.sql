@@ -53,8 +53,10 @@ CREATE TABLE `products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `price` decimal(10,2) NOT NULL,
+  `volume` float NOT NULL,
+  `strength` float NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -63,8 +65,32 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'Водка \"Белый медведь\"',450.00),(2,'Коньяк \"Золотая выдержка\"',1200.00),(3,'Вино \"Красное сухое\"',750.00),(4,'Пиво \"Хмельное настроение\"',150.00),(5,'Ликёр \"Шоколадный аромат\"',900.00);
+INSERT INTO `products` VALUES (1,'Водка \"Белый медведь\"',450.00,0,0),(2,'Коньяк \"Золотая выдержка\"',1200.00,0,0),(3,'Вино \"Красное сухое\"',750.00,0,0),(4,'Пиво \"Хмельное настроение\"',150.00,0,0),(5,'Ликёр \"Шоколадный аромат\"',900.00,0,0),(6,'Водка \"Белый медведь\"',450.00,0.5,40),(7,'Коньяк \"Золотая выдержка\"',1200.00,0.7,40),(8,'Вино \"Красное сухое\"',750.00,0.75,13),(9,'Пиво \"Хмельное настроение\"',150.00,0.5,5),(10,'Ликёр \"Шоколадный аромат\"',900.00,0.7,20),(11,'Виски \"Талискер\"',2500.00,0.7,45),(12,'Ром \"Карибский бриз\"',800.00,0.7,37.5),(13,'Шампанское \"Кристалл\"',3500.00,0.75,12),(14,'Текила \"Эсполон\"',1400.00,0.7,38),(15,'Джин \"Bombay Sapphire\"',1600.00,0.7,47);
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `purchases`
+--
+
+DROP TABLE IF EXISTS `purchases`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `purchases` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `purchase_date` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `purchases`
+--
+
+LOCK TABLES `purchases` WRITE;
+/*!40000 ALTER TABLE `purchases` DISABLE KEYS */;
+INSERT INTO `purchases` VALUES (1,'2025-03-24 16:31:35'),(2,'2025-03-24 17:06:02'),(3,'2025-03-24 17:39:24'),(4,'2025-03-24 19:10:15'),(5,'2025-03-25 00:19:00'),(6,'2025-03-25 00:20:22'),(7,'2025-03-25 00:21:51'),(8,'2025-03-25 00:24:17'),(9,'2025-03-25 00:35:04'),(10,'2025-03-25 00:49:53'),(11,'2025-03-25 00:52:42'),(12,'2025-03-25 00:53:36'),(13,'2025-03-25 13:15:39'),(14,'2025-03-25 13:18:35'),(15,'2025-03-25 13:19:13');
+/*!40000 ALTER TABLE `purchases` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -76,13 +102,17 @@ DROP TABLE IF EXISTS `stock`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stock` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) NOT NULL,
-  `volume` float NOT NULL,
-  `strength` float NOT NULL,
+  `name` varchar(100) NOT NULL DEFAULT '1',
+  `volume` float NOT NULL DEFAULT '1',
+  `strength` float NOT NULL DEFAULT '1',
   `quantity` int NOT NULL,
-  `price` decimal(10,2) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `price` decimal(10,2) NOT NULL DEFAULT '1.00',
+  `product_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_product` (`product_id`),
+  CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_product_id` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -91,6 +121,7 @@ CREATE TABLE `stock` (
 
 LOCK TABLES `stock` WRITE;
 /*!40000 ALTER TABLE `stock` DISABLE KEYS */;
+INSERT INTO `stock` VALUES (6,'Водка \"Белый медведь\"',0.5,40,100,45000.00,6),(7,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(8,'Текила \"Эсполон\"',0.7,38,10,14000.00,14),(9,'Вино \"Красное сухое\"',0.75,13,10,7500.00,8),(10,'Текила \"Эсполон\"',0.7,38,20,28000.00,14),(11,'Ликёр \"Шоколадный аромат\"',0.7,20,1,900.00,10),(12,'Виски \"Талискер\"',0.7,45,2,5000.00,11),(13,'Ликёр \"Шоколадный аромат\"',0.7,20,20,18000.00,10),(14,'Виски \"Талискер\"',0.7,45,20,50000.00,11);
 /*!40000 ALTER TABLE `stock` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -103,16 +134,18 @@ DROP TABLE IF EXISTS `transactions`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `transactions` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `transaction_type` enum('purchase','sale') NOT NULL,
-  `product_id` int NOT NULL,
-  `quantity` int NOT NULL,
-  `total_price` decimal(10,2) NOT NULL,
-  `transaction_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `status` varchar(255) DEFAULT NULL,
+  `transaction_type` varchar(50) DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
+  `quantity` int DEFAULT NULL,
+  `total_price` decimal(10,2) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `purchase_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
-  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `purchase_id` (`purchase_id`),
+  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`purchase_id`) REFERENCES `purchases` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -121,7 +154,7 @@ CREATE TABLE `transactions` (
 
 LOCK TABLES `transactions` WRITE;
 /*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
-INSERT INTO `transactions` VALUES (1,'purchase',1,2,900.00,'2025-03-20 08:32:13',NULL),(2,'purchase',4,23,3450.00,'2025-03-20 08:32:13',NULL),(3,'purchase',2,1,1200.00,'2025-03-20 08:59:05','pending'),(4,'purchase',2,1,1200.00,'2025-03-20 08:59:56','pending'),(5,'purchase',4,12,1800.00,'2025-03-20 08:59:56','pending'),(6,'purchase',5,123,110700.00,'2025-03-20 08:59:56','pending'),(7,'purchase',2,2,2400.00,'2025-03-20 09:42:39','pending');
+INSERT INTO `transactions` VALUES (1,'purchase',2,2,2400.00,'received',1),(2,'purchase',5,1,900.00,'received',1),(3,'purchase',5,1,900.00,'pending',2),(4,'purchase',1,12,5400.00,'pending',2),(5,'purchase',4,100,15000.00,'pending',3),(6,'purchase',15,1,1600.00,'received',4),(7,'purchase',6,12,5400.00,'received',4),(8,'purchase',9,3,450.00,'received',4),(9,'purchase',6,100,45000.00,'received',5),(10,'purchase',6,100,45000.00,'pending',6),(11,'purchase',14,1,1400.00,'received',7),(12,'purchase',12,20,16000.00,'pending',8),(13,'purchase',8,34,25500.00,'pending',9),(14,'purchase',14,1,1400.00,'pending',10),(15,'purchase',14,10,14000.00,'received',11),(16,'purchase',8,10,7500.00,'received',11),(17,'purchase',14,20,28000.00,'received',12),(18,'purchase',6,1,450.00,'pending',13),(19,'purchase',6,12,5400.00,'pending',13),(20,'purchase',10,1,900.00,'received',14),(21,'purchase',11,2,5000.00,'received',14),(22,'purchase',10,20,18000.00,'received',15),(23,'purchase',11,20,50000.00,'received',15);
 /*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -189,4 +222,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-03-20 12:50:33
+-- Dump completed on 2025-03-25 13:23:20

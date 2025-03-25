@@ -1,17 +1,20 @@
 import customtkinter as ctk
 import pymysql
 import random
+import re
 
 DB_HOST = "localhost"
 DB_USER = "root"
 DB_PASSWORD = "12345678"
 DB_NAME = "distillery_db"
 
+
 class StorekeeperDashboard(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Окно кладовщика")
         self.geometry("600x400")
+        self.center_window(600, 400)
 
         self.view_stock_btn = ctk.CTkButton(self, text="Просмотр склада", command=self.view_stock)
         self.view_stock_btn.pack(pady=5)
@@ -27,6 +30,23 @@ class StorekeeperDashboard(ctk.CTk):
 
         self.check_barcode_btn = ctk.CTkButton(self, text="Проверить штрих-код (ЕГАИС)", command=self.check_barcode)
         self.check_barcode_btn.pack(pady=5)
+
+        self.logout_btn = ctk.CTkButton(self, text="Выход", command=self.logout)
+        self.logout_btn.pack(pady=10)
+
+    def center_window(self, width, height):
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
+    def logout(self):
+        self.destroy()
+        from login import LoginApp
+        login_window = LoginApp()
+        login_window.mainloop()
 
     def check_barcode(self):
         def submit():
@@ -59,14 +79,13 @@ class StorekeeperDashboard(ctk.CTk):
         stock_window.grab_set()
         stock_window.focus_set()
 
-        conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, name, quantity FROM stock")
-        items = cursor.fetchall()
-        conn.close()
+        with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, volume, strength, quantity, price FROM stock")
+            items = cursor.fetchall()
 
         for item in items:
-            ctk.CTkLabel(stock_window, text=f"{item[0]}. {item[1]} - {item[2]} шт.").pack()
+            ctk.CTkLabel(stock_window, text=f"{item[0]}. {item[1]} - {item[4]} шт. ({item[2]} L, {item[3]}%)").pack()
 
     def receive_goods(self):
         receive_window = ctk.CTkToplevel(self)
@@ -76,124 +95,131 @@ class StorekeeperDashboard(ctk.CTk):
         receive_window.grab_set()
         receive_window.focus_set()
 
-        conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
-        cursor = conn.cursor()
+        # Подключение к базе данных
+        with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT id, product_id, quantity FROM transactions WHERE transaction_type='purchase' AND status='pending'")
-        pending_deliveries = cursor.fetchall()
+            cursor.execute("""
+            SELECT DISTINCT t.purchase_id
+            FROM transactions t
+            WHERE t.status = 'pending' AND t.purchase_id IS NOT NULL
+            """)
+            pending_deliveries = cursor.fetchall()
 
         if not pending_deliveries:
             ctk.CTkLabel(receive_window, text="Нет ожидающих поставок").pack()
             return
 
-        deliveries_dict = {}
-        transaction_ids = set()
-        for p in pending_deliveries:
-            transaction_id = p[0]
-            product_id = p[1]
-            cursor.execute("SELECT name FROM products WHERE id=%s", (product_id,))
-            product_name = cursor.fetchone()[0]
+        # Список поставок для выбора
+        deliveries_dropdown = ctk.CTkOptionMenu(
+            receive_window,
+            values=[f"Поставка #{d[0]}" for d in pending_deliveries],
+            command=lambda value: self.show_items(value, receive_window)  # Передаем значение и окно
+        )
+        deliveries_dropdown.pack(pady=10)
 
-            if transaction_id not in deliveries_dict:
-                deliveries_dict[transaction_id] = []
+    def show_items(self, selected_delivery, receive_window):
+        delivery_id_match = re.search(r"#(\d+)", selected_delivery)
 
-            deliveries_dict[transaction_id].append((f"{product_name} - {p[2]} шт.", p[0]))
-            transaction_ids.add(transaction_id)
+        if delivery_id_match:
+            selected_delivery_id = int(delivery_id_match.group(1))
+        else:
+            return
 
-        self.deliveries_checkbox_list = []
-        for transaction_id in transaction_ids:
-            delivery_items = deliveries_dict[transaction_id]
-            for item, trans_id in delivery_items:
-                checkbox = ctk.CTkCheckBox(receive_window, text=item, onvalue=trans_id, offvalue=0)
-                self.deliveries_checkbox_list.append(checkbox)
-                checkbox.pack(anchor="w")
+        try:
+            conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+            cursor = conn.cursor()
 
-        def accept_delivery():
-            selected_items = [checkbox.get() for checkbox in self.deliveries_checkbox_list if checkbox.get() != 0]
-            if not selected_items:
-                ctk.CTkLabel(receive_window, text="Не выбраны товары для приёма").pack()
+            # Запрашиваем все товары из выбранной поставки
+            cursor.execute(
+                "SELECT product_id, quantity FROM transactions WHERE purchase_id=%s AND status='pending'",
+                (selected_delivery_id,))
+            products = cursor.fetchall()
+
+            if not products:
+                ctk.CTkLabel(receive_window, text="Нет товаров для этой поставки").pack()
                 return
 
-            try:
-                conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+            # Очистка предыдущих чекбоксов
+            for widget in receive_window.winfo_children():
+                if isinstance(widget, ctk.CTkCheckBox):
+                    widget.destroy()
+
+            self.deliveries_checkbox_list = []
+            for product_id, quantity in products:
+                # Получаем данные о продукте
+                cursor.execute("SELECT name, volume, strength FROM products WHERE id=%s", (product_id,))
+                product_name, volume, strength = cursor.fetchone()
+
+                # Создаем чекбоксы для каждого товара
+                checkbox = ctk.CTkCheckBox(receive_window,
+                                           text=f"{product_name} - {quantity} шт. ({volume} L, {strength}%)",
+                                           onvalue=product_id,
+                                           offvalue=0)
+                self.deliveries_checkbox_list.append(
+                    (checkbox, quantity))  # Сохраняем количество вместе с чекбоксом
+                checkbox.pack(anchor="w")
+
+            # Кнопка для принятия товаров
+            ctk.CTkButton(receive_window, text="Завершить приём поставки",
+                          command=lambda: self.accept_delivery(selected_delivery_id, receive_window)).pack(pady=10)
+
+        except pymysql.MySQLError as e:
+            print(f"Ошибка MySQL: {e}")
+
+        finally:
+            if conn:
+                conn.close()
+
+    def accept_delivery(self, selected_purchase_id, receive_window):
+        selected_items = [(checkbox.get(), quantity) for checkbox, quantity in self.deliveries_checkbox_list if
+                          checkbox.get() != 0]
+        if not selected_items:
+            ctk.CTkLabel(receive_window, text="Не выбраны товары для приёма").pack()
+            return
+
+        try:
+            with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
                 cursor = conn.cursor()
 
-                for transaction_id in selected_items:
-                    cursor.execute("UPDATE transactions SET status='received' WHERE id=%s", (transaction_id,))
+                for product_id, quantity in selected_items:
+                    # Получаем информацию о продукте
+                    cursor.execute("SELECT name, volume, strength, price FROM products WHERE id=%s", (product_id,))
+                    name, volume, strength, unit_price = cursor.fetchone()
 
-                    cursor.execute("SELECT product_id, quantity FROM transactions WHERE id=%s", (transaction_id,))
-                    product_id, quantity = cursor.fetchone()
+                    # Рассчитываем общую цену
+                    total_price = unit_price * quantity
 
+                    # Обновляем склад
                     cursor.execute(
-                        "INSERT INTO stock (product_id, quantity) VALUES (%s, %s) ON DUPLICATE KEY UPDATE quantity = quantity + %s",
-                        (product_id, quantity, quantity))
+                        """INSERT INTO stock (product_id, name, volume, strength, quantity, price) 
+                           VALUES (%s, %s, %s, %s, %s, %s) 
+                           ON DUPLICATE KEY UPDATE 
+                           quantity = quantity + VALUES(quantity), 
+                           price = VALUES(price)""",
+                        (product_id, name, volume, strength, quantity, total_price)
+                    )
+
+                    # Обновляем статус поставки для этого товара
+                    cursor.execute(
+                        "UPDATE transactions SET status='received' WHERE purchase_id=%s AND product_id=%s",
+                        (selected_purchase_id, product_id))
 
                 conn.commit()
                 print("Поставка принята!")
                 receive_window.destroy()
 
-            except pymysql.MySQLError as e:
-                print(f"Ошибка MySQL: {e}")
-
-            finally:
-                if conn:
-                    conn.close()
-
-        ctk.CTkButton(receive_window, text="Завершить приём поставки", command=accept_delivery).pack(pady=10)
+        except pymysql.MySQLError as e:
+            print(f"Ошибка MySQL: {e}")
 
     def write_off_goods(self):
-        def submit():
-            stock_id = int(entry_id.get())
-            quantity = int(entry_quantity.get())
-            reason = entry_reason.get()
-
-            conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
-            cursor = conn.cursor()
-            cursor.execute("UPDATE stock SET quantity = quantity - %s WHERE id = %s", (quantity, stock_id))
-            cursor.execute("INSERT INTO write_offs (stock_id, quantity, reason) VALUES (%s, %s, %s)",
-                           (stock_id, quantity, reason))
-            conn.commit()
-            conn.close()
-            write_off_window.destroy()
-
-        write_off_window = ctk.CTkToplevel(self)
-        write_off_window.title("Списание брака")
-        write_off_window.geometry("300x250")
-        write_off_window.transient(self)
-        write_off_window.grab_set()
-        write_off_window.focus_set()
-
-        ctk.CTkLabel(write_off_window, text="ID товара:").pack()
-        entry_id = ctk.CTkEntry(write_off_window)
-        entry_id.pack()
-
-        ctk.CTkLabel(write_off_window, text="Количество:").pack()
-        entry_quantity = ctk.CTkEntry(write_off_window)
-        entry_quantity.pack()
-
-        ctk.CTkLabel(write_off_window, text="Причина:").pack()
-        entry_reason = ctk.CTkEntry(write_off_window)
-        entry_reason.pack()
-
-        ctk.CTkButton(write_off_window, text="Списать", command=submit).pack(pady=10)
+        # Логика списания брака
+        pass
 
     def stock_report(self):
-        report_window = ctk.CTkToplevel(self)
-        report_window.title("Отчет по складу")
-        report_window.geometry("400x300")
-        report_window.transient(self)
-        report_window.grab_set()
-        report_window.focus_set()
+        # Логика отчета по складу
+        pass
 
-        conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name, SUM(quantity) FROM stock GROUP BY name")
-        items = cursor.fetchall()
-        conn.close()
-
-        for item in items:
-            ctk.CTkLabel(report_window, text=f"{item[0]}: {item[1]} шт.").pack()
 
 if __name__ == "__main__":
     app = StorekeeperDashboard()
