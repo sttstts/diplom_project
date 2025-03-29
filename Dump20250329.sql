@@ -16,33 +16,6 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `deliveries`
---
-
-DROP TABLE IF EXISTS `deliveries`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `deliveries` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `stock_id` int NOT NULL,
-  `quantity` int NOT NULL,
-  `delivery_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `stock_id` (`stock_id`),
-  CONSTRAINT `deliveries_ibfk_1` FOREIGN KEY (`stock_id`) REFERENCES `stock` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `deliveries`
---
-
-LOCK TABLES `deliveries` WRITE;
-/*!40000 ALTER TABLE `deliveries` DISABLE KEYS */;
-/*!40000 ALTER TABLE `deliveries` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `products`
 --
 
@@ -121,7 +94,7 @@ CREATE TABLE `stock` (
 
 LOCK TABLES `stock` WRITE;
 /*!40000 ALTER TABLE `stock` DISABLE KEYS */;
-INSERT INTO `stock` VALUES (6,'Водка \"Белый медведь\"',0.5,40,100,45000.00,6),(7,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(8,'Текила \"Эсполон\"',0.7,38,10,14000.00,14),(9,'Вино \"Красное сухое\"',0.75,13,10,7500.00,8),(10,'Текила \"Эсполон\"',0.7,38,20,28000.00,14),(11,'Ликёр \"Шоколадный аромат\"',0.7,20,1,900.00,10),(12,'Виски \"Талискер\"',0.7,45,2,5000.00,11),(13,'Ликёр \"Шоколадный аромат\"',0.7,20,20,18000.00,10),(14,'Виски \"Талискер\"',0.7,45,20,50000.00,11);
+INSERT INTO `stock` VALUES (6,'Водка \"Белый медведь\"',0.5,40,48,45000.00,6),(7,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(8,'Текила \"Эсполон\"',0.7,38,8,14000.00,14),(9,'Вино \"Красное сухое\"',0.75,13,9,7500.00,8),(10,'Текила \"Эсполон\"',0.7,38,20,28000.00,14),(11,'Ликёр \"Шоколадный аромат\"',0.7,20,1,900.00,10),(12,'Виски \"Талискер\"',0.7,45,2,5000.00,11),(13,'Ликёр \"Шоколадный аромат\"',0.7,20,20,18000.00,10),(14,'Виски \"Талискер\"',0.7,45,15,50000.00,11);
 /*!40000 ALTER TABLE `stock` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -140,12 +113,13 @@ CREATE TABLE `transactions` (
   `total_price` decimal(10,2) DEFAULT NULL,
   `status` varchar(50) DEFAULT NULL,
   `purchase_id` int DEFAULT NULL,
+  `sale_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
   KEY `purchase_id` (`purchase_id`),
   CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
   CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`purchase_id`) REFERENCES `purchases` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -154,7 +128,7 @@ CREATE TABLE `transactions` (
 
 LOCK TABLES `transactions` WRITE;
 /*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
-INSERT INTO `transactions` VALUES (1,'purchase',2,2,2400.00,'received',1),(2,'purchase',5,1,900.00,'received',1),(3,'purchase',5,1,900.00,'pending',2),(4,'purchase',1,12,5400.00,'pending',2),(5,'purchase',4,100,15000.00,'pending',3),(6,'purchase',15,1,1600.00,'received',4),(7,'purchase',6,12,5400.00,'received',4),(8,'purchase',9,3,450.00,'received',4),(9,'purchase',6,100,45000.00,'received',5),(10,'purchase',6,100,45000.00,'pending',6),(11,'purchase',14,1,1400.00,'received',7),(12,'purchase',12,20,16000.00,'pending',8),(13,'purchase',8,34,25500.00,'pending',9),(14,'purchase',14,1,1400.00,'pending',10),(15,'purchase',14,10,14000.00,'received',11),(16,'purchase',8,10,7500.00,'received',11),(17,'purchase',14,20,28000.00,'received',12),(18,'purchase',6,1,450.00,'pending',13),(19,'purchase',6,12,5400.00,'pending',13),(20,'purchase',10,1,900.00,'received',14),(21,'purchase',11,2,5000.00,'received',14),(22,'purchase',10,20,18000.00,'received',15),(23,'purchase',11,20,50000.00,'received',15);
+INSERT INTO `transactions` VALUES (1,'purchase',2,2,2400.00,'received',1,'2025-03-28 14:07:06'),(2,'purchase',5,1,900.00,'received',1,'2025-03-28 14:07:06'),(3,'purchase',5,1,900.00,'pending',2,'2025-03-28 14:07:06'),(4,'purchase',1,12,5400.00,'pending',2,'2025-03-28 14:07:06'),(5,'purchase',4,100,15000.00,'pending',3,'2025-03-28 14:07:06'),(6,'purchase',15,1,1600.00,'received',4,'2025-03-28 14:07:06'),(7,'purchase',6,12,5400.00,'received',4,'2025-03-28 14:07:06'),(8,'purchase',9,3,450.00,'received',4,'2025-03-28 14:07:06'),(9,'purchase',6,100,45000.00,'received',5,'2025-03-28 14:07:06'),(10,'purchase',6,100,45000.00,'pending',6,'2025-03-28 14:07:06'),(11,'purchase',14,1,1400.00,'received',7,'2025-03-28 14:07:06'),(12,'purchase',12,20,16000.00,'pending',8,'2025-03-28 14:07:06'),(13,'purchase',8,34,25500.00,'pending',9,'2025-03-28 14:07:06'),(14,'purchase',14,1,1400.00,'pending',10,'2025-03-28 14:07:06'),(15,'purchase',14,10,14000.00,'received',11,'2025-03-28 14:07:06'),(16,'purchase',8,10,7500.00,'received',11,'2025-03-28 14:07:06'),(17,'purchase',14,20,28000.00,'received',12,'2025-03-28 14:07:06'),(18,'purchase',6,1,450.00,'pending',13,'2025-03-28 14:07:06'),(19,'purchase',6,12,5400.00,'pending',13,'2025-03-28 14:07:06'),(20,'purchase',10,1,900.00,'received',14,'2025-03-28 14:07:06'),(21,'purchase',11,2,5000.00,'received',14,'2025-03-28 14:07:06'),(22,'purchase',10,20,18000.00,'received',15,'2025-03-28 14:07:06'),(23,'purchase',11,20,50000.00,'received',15,'2025-03-28 14:07:06'),(26,'sale',6,50,22500.00,'completed',NULL,'2025-03-28 14:21:45');
 /*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -201,7 +175,7 @@ CREATE TABLE `write_offs` (
   PRIMARY KEY (`id`),
   KEY `stock_id` (`stock_id`),
   CONSTRAINT `write_offs_ibfk_1` FOREIGN KEY (`stock_id`) REFERENCES `stock` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -210,6 +184,7 @@ CREATE TABLE `write_offs` (
 
 LOCK TABLES `write_offs` WRITE;
 /*!40000 ALTER TABLE `write_offs` DISABLE KEYS */;
+INSERT INTO `write_offs` VALUES (1,14,1,'Повреждение упаковки','2025-03-28 15:40:46'),(2,13,1,'Просроченный срок годности','2025-03-28 15:45:45'),(3,9,1,'Повреждение упаковки','2025-03-28 15:49:35'),(4,14,3,'Несоответствие маркировки','2025-03-28 15:53:15');
 /*!40000 ALTER TABLE `write_offs` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -222,4 +197,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-03-25 13:23:20
+-- Dump completed on 2025-03-29 12:11:30

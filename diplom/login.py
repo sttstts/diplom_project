@@ -64,7 +64,7 @@ class LoginApp(ctk.CTk):
         elif role == "Бухгалтер":
             import accountant_panel
 
-            accountant_panel.AccountantDashboard().mainloop()  # Передаем корзину
+            accountant_panel.AccountantDashboard().mainloop()
 
 if __name__ == "__main__":
     app = LoginApp()

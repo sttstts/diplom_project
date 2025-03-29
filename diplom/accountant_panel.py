@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import pymysql
 import datetime
+from tkinter import W, CENTER, E
 
 DB_HOST = "localhost"
 DB_USER = "root"
@@ -11,23 +12,34 @@ class AccountantDashboard(ctk.CTk):
     def __init__(self, cart=None):
         super().__init__()
         self.title("Окно бухгалтера")
-        self.geometry("600x400")
-        self.center_window(600, 400)
+        self.geometry("700x350")
+        self.center_window(700, 350)
+        self.resizable(False, False)
 
-        # Корзина товаров для закупки
-        self.cart = cart if cart is not None else []  # Корзина товаров для закупки
+        self.cart = cart if cart is not None else []
 
-        self.purchase_goods_btn = ctk.CTkButton(self, text="Закупка товара", command=self.purchase_goods)
-        self.purchase_goods_btn.pack(pady=5)
+        button_width = 200
+        button_height = 120
+        padding = 20
 
-        self.sell_goods_btn = ctk.CTkButton(self, text="Продажа товара", command=self.sell_goods)
-        self.sell_goods_btn.pack(pady=5)
+        self.purchase_goods_btn = self.create_tile_button("Закупка товара", self.purchase_goods)
+        self.purchase_goods_btn.place(relx=0.15, rely=0.25, anchor=W)
 
-        self.financial_report_btn = ctk.CTkButton(self, text="Финансовый отчет", command=self.financial_report)
-        self.financial_report_btn.pack(pady=5)
+        self.sell_goods_btn = self.create_tile_button("Продажа товара", self.sell_goods)
+        self.sell_goods_btn.place(relx=0.7, rely=0.25, anchor=CENTER)
 
-        self.logout_btn = ctk.CTkButton(self, text="Выход", command=self.logout)
-        self.logout_btn.pack(pady=10)
+        self.financial_report_btn = self.create_tile_button("Финансовый отчет", self.financial_report)
+        self.financial_report_btn.place(relx=0.15, rely=0.65, anchor=W)
+
+        self.logout_btn = self.create_tile_button("Выход", self.logout)
+        self.logout_btn.place(relx=0.7, rely=0.65, anchor=CENTER)
+
+    def create_tile_button(self, text, command):
+        button = ctk.CTkButton(self, text=text, command=command, width=220, height=120, corner_radius=15,
+                               fg_color="#3b8ed0", hover_color="#2971a4", font=('', 20))
+        button.bind("<Enter>", lambda event, btn=button: btn.configure(fg_color="#2971a4"))
+        button.bind("<Leave>", lambda event, btn=button: btn.configure(fg_color="#3b8ed0"))
+        return button
 
     def center_window(self, width, height):
         self.update_idletasks()
@@ -38,11 +50,9 @@ class AccountantDashboard(ctk.CTk):
         self.geometry(f"{width}x{height}+{x}+{y}")
 
     def logout(self):
-        # Закрытие текущего окна, если оно открыто
         if self.winfo_exists():
             self.destroy()
 
-        # Открытие окна логина
         from login import LoginApp
         login_window = LoginApp()
         login_window.mainloop()
@@ -55,7 +65,6 @@ class AccountantDashboard(ctk.CTk):
         purchase_window.grab_set()
         purchase_window.focus_set()
 
-        # Получаем список товаров из базы данных
         conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, price FROM products")
@@ -68,15 +77,14 @@ class AccountantDashboard(ctk.CTk):
 
         self.product_dict = {f"{p[1]} (Цена: {p[2]})": {"id": p[0], "name": p[1], "price": p[2]} for p in products}
 
-        self.selected_product = ctk.StringVar(value=list(self.product_dict.keys())[0])  # По умолчанию первый товар
+        self.selected_product = ctk.StringVar(value=list(self.product_dict.keys())[0])
 
-        # ✅ Обновляем выбранный товар при смене в ComboBox
         def update_selected_product(choice):
             self.selected_product.set(choice)
 
         product_dropdown = ctk.CTkComboBox(
             purchase_window, values=list(self.product_dict.keys()), variable=self.selected_product,
-            command=update_selected_product  # Обновляем переменную при выборе
+            command=update_selected_product
         )
         product_dropdown.pack(pady=5)
 
@@ -120,15 +128,12 @@ class AccountantDashboard(ctk.CTk):
                 print("Корзина пуста, невозможно выполнить закупку!")
                 return
 
-            # Создаем запись о поставке в таблице purchases
             conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
             cursor = conn.cursor()
 
-            # Записываем новую поставку
             cursor.execute("INSERT INTO purchases (purchase_date) VALUES (NOW())")
-            purchase_id = cursor.lastrowid  # Получаем ID последней вставленной записи
+            purchase_id = cursor.lastrowid
 
-            # Записываем товары с привязкой к поставке
             for item in self.cart:
                 product_id = item["id"]
                 quantity = item["quantity"]
@@ -142,19 +147,125 @@ class AccountantDashboard(ctk.CTk):
 
             conn.commit()
             conn.close()
-            self.cart.clear()  # Очищаем корзину после успешной закупки
+            self.cart.clear()
             print("Закупка успешно проведена! Ожидает подтверждения кладовщика.")
 
         ctk.CTkButton(purchase_window, text="Закупить", command=purchase).pack(pady=5)
 
     def sell_goods(self):
-        pass
+        sell_window = ctk.CTkToplevel(self)
+        sell_window.title("Продажа товара")
+        sell_window.geometry("500x400")
+        sell_window.transient(self)
+        sell_window.grab_set()
+        sell_window.focus_set()
+
+        conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT products.id, products.name, products.price, stock.quantity FROM products JOIN stock ON stock.product_id = products.id;")
+        products = cursor.fetchall()
+        conn.close()
+
+        if not products:
+            print("Ошибка: в базе данных нет товаров!")
+            return
+
+        self.product_dict = {
+            f"{p[1]} (Остаток: {p[3]} шт., Цена: {p[2]})": {"id": p[0], "name": p[1], "price": p[2], "stock": p[3]}
+            for p in products
+        }
+
+        self.selected_product = ctk.StringVar(value=list(self.product_dict.keys())[0])
+
+        def update_selected_product(choice):
+            self.selected_product.set(choice)
+            product_data = self.product_dict[choice]
+            price_entry.delete(0, "end")
+            price_entry.insert(0, str(product_data["price"]))
+            update_total_price()
+
+        ctk.CTkLabel(sell_window, text="Выберите товар:").pack()
+        product_dropdown = ctk.CTkComboBox(
+            sell_window, values=list(self.product_dict.keys()), variable=self.selected_product,
+            command=update_selected_product
+        )
+        product_dropdown.pack(pady=5)
+
+        ctk.CTkLabel(sell_window, text="Количество:").pack()
+        quantity_entry = ctk.CTkEntry(sell_window)
+        quantity_entry.pack()
+
+        ctk.CTkLabel(sell_window, text="Цена за единицу:").pack()
+        price_entry = ctk.CTkEntry(sell_window)
+        price_entry.pack()
+
+        total_price_label = ctk.CTkLabel(sell_window, text="Итоговая сумма: 0.00")
+        total_price_label.pack()
+
+        def update_total_price(*args):
+            selected = self.selected_product.get()
+            product_data = self.product_dict[selected]
+
+            try:
+                quantity = int(quantity_entry.get())
+                price_per_unit = float(price_entry.get())
+                total_price = quantity * price_per_unit
+                total_price_label.configure(text=f"Итоговая сумма: {total_price:.2f} руб.")
+            except ValueError:
+                total_price_label.configure(text="Итоговая сумма: 0.00")
+
+        quantity_entry.bind("<KeyRelease>", update_total_price)
+        price_entry.bind("<KeyRelease>", update_total_price)
+
+        def process_sale():
+            selected = self.selected_product.get()
+            product_data = self.product_dict[selected]
+
+            quantity = quantity_entry.get().strip()
+            price_per_unit = price_entry.get().strip()
+
+            if not quantity.isdigit() or int(quantity) <= 0:
+                print("Ошибка: введите корректное количество!")
+                return
+
+            quantity = int(quantity)
+            price_per_unit = float(price_per_unit)
+
+            if quantity > product_data["stock"]:
+                print("Ошибка: недостаточно товара на складе!")
+                return
+
+            total_price = quantity * price_per_unit
+
+            conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                "INSERT INTO transactions (transaction_type, product_id, quantity, total_price, status, sale_date) "
+                "VALUES ('sale', %s, %s, %s, 'completed', NOW())",
+                (product_data["id"], quantity, total_price)
+            )
+
+            cursor.execute(
+                "UPDATE stock SET quantity = quantity - %s WHERE product_id = %s",
+                (quantity, product_data["id"])
+            )
+
+            conn.commit()
+            conn.close()
+
+            print(
+                f"Продан товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб."
+            )
+
+            sell_window.destroy()
+
+        ctk.CTkButton(sell_window, text="Продать", command=process_sale).pack(pady=10)
 
     def financial_report(self):
         pass
 
 
 if __name__ == "__main__":
-    # При старте приложения корзина может быть передана
-    app = AccountantDashboard()  # Создаём окно с корзиной
+    app = AccountantDashboard()
     app.mainloop()
