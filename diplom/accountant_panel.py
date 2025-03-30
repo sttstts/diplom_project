@@ -263,7 +263,59 @@ class AccountantDashboard(ctk.CTk):
         ctk.CTkButton(sell_window, text="Продать", command=process_sale).pack(pady=10)
 
     def financial_report(self):
-        pass
+        report_window = ctk.CTkToplevel(self)
+        report_window.title("Финансовый отчет")
+        report_window.geometry("600x400")
+
+        today_date = datetime.date.today()
+
+        conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT p.name, SUM(t.quantity), SUM(t.total_price)
+            FROM transactions t
+            JOIN products p ON t.product_id = p.id
+            WHERE t.transaction_type = 'sale' AND t.sale_date = %s
+            GROUP BY p.name
+        """, (today_date,))
+        sales_data = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT p.name, SUM(t.quantity), SUM(t.total_price)
+            FROM transactions t
+            JOIN products p ON t.product_id = p.id
+            WHERE t.transaction_type = 'purchase' AND t.purchase_date = %s
+            GROUP BY p.name
+        """, (today_date,))
+        purchase_data = cursor.fetchall()
+
+        conn.close()
+
+        report_text = f"Отчет за {today_date}:\n\n"
+
+        total_sales = 0
+        report_text += "Отчет по продажам:\n"
+        for row in sales_data:
+            product_name, total_quantity, total_sales_value = row
+            report_text += f"{product_name}: {total_quantity} шт. на сумму {total_sales_value} руб.\n"
+            total_sales += total_sales_value
+
+        total_purchases = 0
+        report_text += "\nОтчет по закупкам:\n"
+        for row in purchase_data:
+            product_name, total_quantity, total_purchase_value = row
+            report_text += f"{product_name}: {total_quantity} шт. на сумму {total_purchase_value} руб.\n"
+            total_purchases += total_purchase_value
+
+        profit_or_loss = total_sales - total_purchases
+        report_text += f"\nОбщая прибыль/убыток за день: {profit_or_loss:.2f} руб."
+
+        report_label = ctk.CTkLabel(report_window, text=report_text, anchor="w")
+        report_label.pack(pady=10)
+
+        close_button = ctk.CTkButton(report_window, text="Закрыть", command=report_window.destroy)
+        close_button.pack(pady=10)
 
 
 if __name__ == "__main__":

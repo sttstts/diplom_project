@@ -4,6 +4,14 @@ import pymysql
 import random
 import re
 from tkinter import W, CENTER, E
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+from datetime import datetime
+import os
 
 DB_HOST = "localhost"
 DB_USER = "root"
@@ -84,6 +92,66 @@ class StorekeeperDashboard(ctk.CTk):
 
         ctk.CTkButton(barcode_window, text="Проверить", command=submit).pack(pady=10)
 
+    def stock_report(self):
+        filename = f"Отчет_по_складу_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
+        filepath = os.path.join(os.getcwd(), filename)
+
+        pdfmetrics.registerFont(TTFont('DejaVu', r'C:\Users\Степан\PycharmProjects\diplom\font\DejaVuSans.ttf'))
+
+        c = canvas.Canvas(filepath, pagesize=A4)
+        width, height = A4
+
+        c.setFont("DejaVu", 16)
+        c.drawString(200, height - 50, "Отчет по складу")
+
+        c.setFont("DejaVu", 12)
+        report_date = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        c.drawString(200, height - 70, f"Дата создания: {report_date}")
+
+        data = [["Название", "Объём", "Крепкость", "Количество", "Цена (р)"]]
+        with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name, volume, strength, quantity, price FROM stock")
+            items = cursor.fetchall()
+
+        for item in items:
+            data.append([item[0], item[1], item[2], item[3], f"{item[4]:.2f} р"])
+
+        col_widths = [max(len(str(row[i])) for row in data) * 8 for i in range(len(data[0]))]
+        col_widths = [min(w, 150) for w in col_widths]
+
+        table = Table(data, colWidths=col_widths)
+
+        style = TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, -1), "DejaVu"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+        ])
+        table.setStyle(style)
+
+        table_width = sum(col_widths)
+        if table_width > width - 100:
+            scale_factor = (width - 100) / table_width
+            table._argW = [w * scale_factor for w in col_widths]
+
+        start_y = height - 120
+        row_height = 20
+        table_height = len(data) * row_height
+
+        if start_y - table_height < 50:
+            c.showPage()
+            start_y = height - 50
+
+        table.wrapOn(c, width, height)
+        table.drawOn(c, 50, start_y - table_height)
+
+        c.save()
+
+        print(f"PDF-отчёт создан: {filepath}")
+
     def view_stock(self):
         stock_window = ctk.CTkToplevel(self)
         stock_window.title("Склад")
@@ -96,16 +164,11 @@ class StorekeeperDashboard(ctk.CTk):
         header_frame = ctk.CTkFrame(stock_window)
         header_frame.pack(fill="x", padx=10, pady=5)
 
-        ctk.CTkLabel(header_frame, text="ID", width=50, anchor="w").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        ctk.CTkLabel(header_frame, text="Наименование", width=200, anchor="w").grid(row=0, column=1, padx=10, pady=5,
-                                                                                    sticky="w")
-        ctk.CTkLabel(header_frame, text="Объем (L)", width=100, anchor="w").grid(row=0, column=2, padx=10, pady=5,
-                                                                                 sticky="w")
-        ctk.CTkLabel(header_frame, text="Крепость (%)", width=100, anchor="w").grid(row=0, column=3, padx=10, pady=5,
-                                                                                    sticky="w")
-        ctk.CTkLabel(header_frame, text="Количество (шт)", width=100, anchor="w").grid(row=0, column=4, padx=10, pady=5,
-                                                                                       sticky="w")
-        ctk.CTkLabel(header_frame, text="Цена", width=100, anchor="w").grid(row=0, column=5, padx=10, pady=5, sticky="w")
+        columns = ["ID", "Наименование", "Объем (L)", "Крепость (%)", "Количество (шт)", "Цена"]
+        widths = [50, 200, 100, 100, 100, 100]
+
+        for i, col in enumerate(columns):
+            ctk.CTkLabel(header_frame, text=col, width=widths[i], anchor="w").grid(row=0, column=i, padx=10, pady=5, sticky="w")
 
         canvas = ctk.CTkCanvas(stock_window)
         canvas.pack(side="left", fill="both", expand=True)
@@ -128,21 +191,17 @@ class StorekeeperDashboard(ctk.CTk):
             row_frame = ctk.CTkFrame(scrollable_frame)
             row_frame.pack(fill="x", padx=10, pady=2)
 
-            ctk.CTkLabel(row_frame, text=str(item[0]), width=50, anchor="w").grid(row=0, column=0, padx=10, pady=2,
-                                                                                  sticky="w")
-            ctk.CTkLabel(row_frame, text=item[1], width=200, anchor="w").grid(row=0, column=1, padx=10, pady=2,
-                                                                              sticky="w")
-            ctk.CTkLabel(row_frame, text=str(item[2]), width=100, anchor="w").grid(row=0, column=2, padx=10, pady=2,
-                                                                                   sticky="w")
-            ctk.CTkLabel(row_frame, text=str(item[3]), width=100, anchor="w").grid(row=0, column=3, padx=10, pady=2,
-                                                                                   sticky="w")
-            ctk.CTkLabel(row_frame, text=str(item[4]), width=100, anchor="w").grid(row=0, column=4, padx=10, pady=2,
-                                                                                   sticky="w")
-            ctk.CTkLabel(row_frame, text=f"{item[5]:.2f} руб.", width=100, anchor="w").grid(row=0, column=5, padx=10,
-                                                                                            pady=2, sticky="w")
+            for j, value in enumerate(item):
+                text = f"{value:.2f} руб." if j == 5 else str(value)
+                ctk.CTkLabel(row_frame, text=text, width=widths[j], anchor="w").grid(row=0, column=j, padx=10, pady=2, sticky="w")
 
         scrollable_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
+
+        def on_mouse_wheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        stock_window.bind_all("<MouseWheel>", on_mouse_wheel)
 
     def receive_goods(self):
         receive_window = ctk.CTkToplevel(self)
@@ -172,6 +231,11 @@ class StorekeeperDashboard(ctk.CTk):
             command=lambda value: self.show_items(value, receive_window)
         )
         deliveries_dropdown.pack(pady=10)
+
+        self.complete_button = None
+
+        deliveries_dropdown.configure(
+            command=lambda value: self.show_items(value, receive_window))
 
     def show_items(self, selected_delivery, receive_window):
         delivery_id_match = re.search(r"#(\d+)", selected_delivery)
@@ -211,8 +275,11 @@ class StorekeeperDashboard(ctk.CTk):
                     (checkbox, quantity))
                 checkbox.pack(anchor="w")
 
-            ctk.CTkButton(receive_window, text="Завершить приём поставки",
-                          command=lambda: self.accept_delivery(selected_delivery_id, receive_window)).pack(pady=10)
+            if not self.complete_button:
+                self.complete_button = ctk.CTkButton(receive_window, text="Завершить приём поставки",
+                                                     command=lambda: self.accept_delivery(selected_delivery_id,
+                                                                                          receive_window))
+                self.complete_button.pack(pady=20)
 
         except pymysql.MySQLError as e:
             print(f"Ошибка MySQL: {e}")
@@ -323,6 +390,11 @@ class StorekeeperDashboard(ctk.CTk):
         scrollable_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
 
+        def on_mouse_wheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        write_off_window.bind_all("<MouseWheel>", on_mouse_wheel)
+
     def select_item_for_write_off(self, write_off_window, item):
         write_off_window.destroy()
 
@@ -412,11 +484,6 @@ class StorekeeperDashboard(ctk.CTk):
 
         except Exception as e:
             ctk.CTkLabel(write_off_detail_window, text=f"Ошибка: {str(e)}").pack(padx=10, pady=5)
-
-    def stock_report(self):
-
-        pass
-
 
 if __name__ == "__main__":
     app = StorekeeperDashboard()
