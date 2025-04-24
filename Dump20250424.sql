@@ -53,7 +53,7 @@ CREATE TABLE `purchases` (
   `id` int NOT NULL AUTO_INCREMENT,
   `purchase_date` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -62,7 +62,7 @@ CREATE TABLE `purchases` (
 
 LOCK TABLES `purchases` WRITE;
 /*!40000 ALTER TABLE `purchases` DISABLE KEYS */;
-INSERT INTO `purchases` VALUES (1,'2025-03-24 16:31:35'),(2,'2025-03-24 17:06:02'),(3,'2025-03-24 17:39:24'),(4,'2025-03-24 19:10:15'),(5,'2025-03-25 00:19:00'),(6,'2025-03-25 00:20:22'),(7,'2025-03-25 00:21:51'),(8,'2025-03-25 00:24:17'),(9,'2025-03-25 00:35:04'),(10,'2025-03-25 00:49:53'),(11,'2025-03-25 00:52:42'),(12,'2025-03-25 00:53:36'),(13,'2025-03-25 13:15:39'),(14,'2025-03-25 13:18:35'),(15,'2025-03-25 13:19:13'),(16,'2025-03-30 22:00:27');
+INSERT INTO `purchases` VALUES (1,'2025-03-24 16:31:35'),(2,'2025-03-24 17:06:02'),(3,'2025-03-24 17:39:24'),(4,'2025-03-24 19:10:15'),(5,'2025-03-25 00:19:00'),(6,'2025-03-25 00:20:22'),(7,'2025-03-25 00:21:51'),(8,'2025-03-25 00:24:17'),(9,'2025-03-25 00:35:04'),(10,'2025-03-25 00:49:53'),(11,'2025-03-25 00:52:42'),(12,'2025-03-25 00:53:36'),(13,'2025-03-25 13:15:39'),(14,'2025-03-25 13:18:35'),(15,'2025-03-25 13:19:13'),(16,'2025-03-30 22:00:27'),(17,'2025-04-24 15:30:53');
 /*!40000 ALTER TABLE `purchases` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -85,7 +85,7 @@ CREATE TABLE `stock` (
   KEY `fk_product` (`product_id`),
   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
   CONSTRAINT `fk_product_id` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -94,7 +94,7 @@ CREATE TABLE `stock` (
 
 LOCK TABLES `stock` WRITE;
 /*!40000 ALTER TABLE `stock` DISABLE KEYS */;
-INSERT INTO `stock` VALUES (6,'Водка \"Белый медведь\"',0.5,40,48,45000.00,6),(7,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(8,'Текила \"Эсполон\"',0.7,38,8,14000.00,14),(9,'Вино \"Красное сухое\"',0.75,13,9,7500.00,8),(10,'Текила \"Эсполон\"',0.7,38,20,28000.00,14),(11,'Ликёр \"Шоколадный аромат\"',0.7,20,1,900.00,10),(12,'Виски \"Талискер\"',0.7,45,2,5000.00,11),(13,'Ликёр \"Шоколадный аромат\"',0.7,20,20,18000.00,10),(14,'Виски \"Талискер\"',0.7,45,15,50000.00,11),(15,'Водка \"Белый медведь\"',0.5,40,1,450.00,6),(16,'Водка \"Белый медведь\"',0.5,40,12,5400.00,6),(17,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(18,'Коньяк \"Золотая выдержка\"',0.7,40,1,1200.00,7),(19,'Вино \"Красное сухое\"',0.75,13,1,750.00,8),(20,'Пиво \"Хмельное настроение\"',0.5,5,1,150.00,9),(21,'Ром \"Карибский бриз\"',0.7,37.5,1,800.00,12),(22,'Шампанское \"Кристалл\"',0.75,12,1,3500.00,13),(23,'Шампанское \"Кристалл\"',0.75,12,1,3500.00,13),(24,'Джин \"Bombay Sapphire\"',0.7,47,1,1600.00,15),(25,'Водка \"Белый медведь\"',0.5,40,1,450.00,6),(26,'Вино \"Красное сухое\"',0.75,13,32,25500.00,8);
+INSERT INTO `stock` VALUES (6,'Водка \"Белый медведь\"',0.5,40,40,45000.00,6),(7,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(8,'Текила \"Эсполон\"',0.7,38,8,14000.00,14),(9,'Вино \"Красное сухое\"',0.75,13,9,7500.00,8),(10,'Текила \"Эсполон\"',0.7,38,20,28000.00,14),(11,'Ликёр \"Шоколадный аромат\"',0.7,20,1,900.00,10),(12,'Виски \"Талискер\"',0.7,45,2,5000.00,11),(13,'Ликёр \"Шоколадный аромат\"',0.7,20,20,18000.00,10),(14,'Виски \"Талискер\"',0.7,45,15,50000.00,11),(15,'Водка \"Белый медведь\"',0.5,40,1,450.00,6),(16,'Водка \"Белый медведь\"',0.5,40,12,5400.00,6),(17,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(18,'Коньяк \"Золотая выдержка\"',0.7,40,1,1200.00,7),(19,'Вино \"Красное сухое\"',0.75,13,1,750.00,8),(20,'Пиво \"Хмельное настроение\"',0.5,5,1,150.00,9),(21,'Ром \"Карибский бриз\"',0.7,37.5,1,800.00,12),(22,'Шампанское \"Кристалл\"',0.75,12,0,3500.00,13),(23,'Шампанское \"Кристалл\"',0.75,12,0,3500.00,13),(24,'Джин \"Bombay Sapphire\"',0.7,47,1,1600.00,15),(25,'Водка \"Белый медведь\"',0.5,40,1,450.00,6),(26,'Вино \"Красное сухое\"',0.75,13,32,25500.00,8),(27,'Текила \"Эсполон\"',0.7,38,1,1400.00,14),(28,'Вино \"Красное сухое\"',0.75,13,1,750.00,8);
 /*!40000 ALTER TABLE `stock` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -119,7 +119,7 @@ CREATE TABLE `transactions` (
   KEY `purchase_id` (`purchase_id`),
   CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
   CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`purchase_id`) REFERENCES `purchases` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -128,7 +128,7 @@ CREATE TABLE `transactions` (
 
 LOCK TABLES `transactions` WRITE;
 /*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
-INSERT INTO `transactions` VALUES (1,'purchase',2,2,2400.00,'received',1,'2025-03-28 14:07:06'),(2,'purchase',5,1,900.00,'received',1,'2025-03-28 14:07:06'),(3,'purchase',5,1,900.00,'pending',2,'2025-03-28 14:07:06'),(4,'purchase',1,12,5400.00,'pending',2,'2025-03-28 14:07:06'),(5,'purchase',4,100,15000.00,'pending',3,'2025-03-28 14:07:06'),(6,'purchase',15,1,1600.00,'received',4,'2025-03-28 14:07:06'),(7,'purchase',6,12,5400.00,'received',4,'2025-03-28 14:07:06'),(8,'purchase',9,3,450.00,'received',4,'2025-03-28 14:07:06'),(9,'purchase',6,100,45000.00,'received',5,'2025-03-28 14:07:06'),(10,'purchase',6,100,45000.00,'pending',6,'2025-03-28 14:07:06'),(11,'purchase',14,1,1400.00,'received',7,'2025-03-28 14:07:06'),(12,'purchase',12,20,16000.00,'pending',8,'2025-03-28 14:07:06'),(13,'purchase',8,34,25500.00,'pending',9,'2025-03-28 14:07:06'),(14,'purchase',14,1,1400.00,'received',10,'2025-03-28 14:07:06'),(15,'purchase',14,10,14000.00,'received',11,'2025-03-28 14:07:06'),(16,'purchase',8,10,7500.00,'received',11,'2025-03-28 14:07:06'),(17,'purchase',14,20,28000.00,'received',12,'2025-03-28 14:07:06'),(18,'purchase',6,1,450.00,'received',13,'2025-03-28 14:07:06'),(19,'purchase',6,12,5400.00,'received',13,'2025-03-28 14:07:06'),(20,'purchase',10,1,900.00,'received',14,'2025-03-28 14:07:06'),(21,'purchase',11,2,5000.00,'received',14,'2025-03-28 14:07:06'),(22,'purchase',10,20,18000.00,'received',15,'2025-03-28 14:07:06'),(23,'purchase',11,20,50000.00,'received',15,'2025-03-28 14:07:06'),(26,'sale',6,50,22500.00,'completed',NULL,'2025-03-28 14:21:45'),(27,'purchase',7,1,1200.00,'received',16,'2025-03-30 19:00:27'),(28,'purchase',8,1,750.00,'received',16,'2025-03-30 19:00:27'),(29,'purchase',9,1,150.00,'received',16,'2025-03-30 19:00:27'),(30,'purchase',12,1,800.00,'received',16,'2025-03-30 19:00:27'),(31,'purchase',13,1,3500.00,'received',16,'2025-03-30 19:00:27'),(32,'purchase',13,1,3500.00,'received',16,'2025-03-30 19:00:27'),(33,'purchase',15,1,1600.00,'received',16,'2025-03-30 19:00:27'),(34,'purchase',6,1,450.00,'received',16,'2025-03-30 19:00:27');
+INSERT INTO `transactions` VALUES (1,'purchase',2,2,2400.00,'received',1,'2025-03-28 14:07:06'),(2,'purchase',5,1,900.00,'received',1,'2025-03-28 14:07:06'),(3,'purchase',5,1,900.00,'pending',2,'2025-03-28 14:07:06'),(4,'purchase',1,12,5400.00,'pending',2,'2025-03-28 14:07:06'),(5,'purchase',4,100,15000.00,'pending',3,'2025-03-28 14:07:06'),(6,'purchase',15,1,1600.00,'received',4,'2025-03-28 14:07:06'),(7,'purchase',6,12,5400.00,'received',4,'2025-03-28 14:07:06'),(8,'purchase',9,3,450.00,'received',4,'2025-03-28 14:07:06'),(9,'purchase',6,100,45000.00,'received',5,'2025-03-28 14:07:06'),(10,'purchase',6,100,45000.00,'pending',6,'2025-03-28 14:07:06'),(11,'purchase',14,1,1400.00,'received',7,'2025-03-28 14:07:06'),(12,'purchase',12,20,16000.00,'pending',8,'2025-03-28 14:07:06'),(13,'purchase',8,34,25500.00,'pending',9,'2025-03-28 14:07:06'),(14,'purchase',14,1,1400.00,'received',10,'2025-03-28 14:07:06'),(15,'purchase',14,10,14000.00,'received',11,'2025-03-28 14:07:06'),(16,'purchase',8,10,7500.00,'received',11,'2025-03-28 14:07:06'),(17,'purchase',14,20,28000.00,'received',12,'2025-03-28 14:07:06'),(18,'purchase',6,1,450.00,'received',13,'2025-03-28 14:07:06'),(19,'purchase',6,12,5400.00,'received',13,'2025-03-28 14:07:06'),(20,'purchase',10,1,900.00,'received',14,'2025-03-28 14:07:06'),(21,'purchase',11,2,5000.00,'received',14,'2025-03-28 14:07:06'),(22,'purchase',10,20,18000.00,'received',15,'2025-03-28 14:07:06'),(23,'purchase',11,20,50000.00,'received',15,'2025-03-28 14:07:06'),(26,'sale',6,50,22500.00,'completed',NULL,'2025-03-28 14:21:45'),(27,'purchase',7,1,1200.00,'received',16,'2025-03-30 19:00:27'),(28,'purchase',8,1,750.00,'received',16,'2025-03-30 19:00:27'),(29,'purchase',9,1,150.00,'received',16,'2025-03-30 19:00:27'),(30,'purchase',12,1,800.00,'received',16,'2025-03-30 19:00:27'),(31,'purchase',13,1,3500.00,'received',16,'2025-03-30 19:00:27'),(32,'purchase',13,1,3500.00,'received',16,'2025-03-30 19:00:27'),(33,'purchase',15,1,1600.00,'received',16,'2025-03-30 19:00:27'),(34,'purchase',6,1,450.00,'received',16,'2025-03-30 19:00:27'),(35,'purchase',14,1,1400.00,'received',17,'2025-04-24 12:30:53'),(36,'purchase',8,1,750.00,'received',17,'2025-04-24 12:30:53'),(37,'sale',13,1,3500.00,'completed',NULL,'2025-04-24 12:32:51');
 /*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -146,7 +146,7 @@ CREATE TABLE `users` (
   `role` enum('Администратор','Кладовщик','Бухгалтер') NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -155,7 +155,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (4,'admin','admin123','Администратор'),(9,'qw','qwqw','Кладовщик'),(10,'zx','zxzx','Бухгалтер');
+INSERT INTO `users` VALUES (4,'admin','admin123','Администратор'),(9,'qw','qwqw','Кладовщик'),(11,'gege','gege','Бухгалтер');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -175,7 +175,7 @@ CREATE TABLE `write_offs` (
   PRIMARY KEY (`id`),
   KEY `stock_id` (`stock_id`),
   CONSTRAINT `write_offs_ibfk_1` FOREIGN KEY (`stock_id`) REFERENCES `stock` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -184,7 +184,7 @@ CREATE TABLE `write_offs` (
 
 LOCK TABLES `write_offs` WRITE;
 /*!40000 ALTER TABLE `write_offs` DISABLE KEYS */;
-INSERT INTO `write_offs` VALUES (1,14,1,'Повреждение упаковки','2025-03-28 15:40:46'),(2,13,1,'Просроченный срок годности','2025-03-28 15:45:45'),(3,9,1,'Повреждение упаковки','2025-03-28 15:49:35'),(4,14,3,'Несоответствие маркировки','2025-03-28 15:53:15'),(5,26,2,'Просроченный срок годности','2025-03-30 21:40:22');
+INSERT INTO `write_offs` VALUES (1,14,1,'Повреждение упаковки','2025-03-28 15:40:46'),(2,13,1,'Просроченный срок годности','2025-03-28 15:45:45'),(3,9,1,'Повреждение упаковки','2025-03-28 15:49:35'),(4,14,3,'Несоответствие маркировки','2025-03-28 15:53:15'),(5,26,2,'Просроченный срок годности','2025-03-30 21:40:22'),(6,6,8,'Нарушение условий хранения','2025-04-24 12:31:37');
 /*!40000 ALTER TABLE `write_offs` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -197,4 +197,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-03-31  0:51:19
+-- Dump completed on 2025-04-24 21:18:39

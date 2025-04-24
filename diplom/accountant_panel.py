@@ -1,7 +1,17 @@
-import customtkinter as ctk
+import os
 import pymysql
-import datetime
+import customtkinter as ctk
 from tkinter import W, CENTER, E
+from datetime import datetime
+
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+
+
 
 DB_HOST = "localhost"
 DB_USER = "root"
@@ -265,58 +275,270 @@ class AccountantDashboard(ctk.CTk):
     def financial_report(self):
         report_window = ctk.CTkToplevel(self)
         report_window.title("Финансовый отчет")
-        report_window.geometry("600x400")
+        report_window.geometry("1090x500")
+        report_window.transient(self)
+        report_window.grab_set()
+        report_window.focus_set()
 
-        today_date = datetime.date.today()
+        self.sort_type_state = None
+        self.sort_total_state = None
+        self.sort_quantity_state = None
+        self.sort_name_state = None
+        self.sort_date_state = None
 
-        conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
-        cursor = conn.cursor()
+        header_frame = ctk.CTkFrame(report_window)
+        header_frame.pack(fill="x", padx=10, pady=5)
 
-        cursor.execute("""
-            SELECT p.name, SUM(t.quantity), SUM(t.total_price)
-            FROM transactions t
-            JOIN products p ON t.product_id = p.id
-            WHERE t.transaction_type = 'sale' AND t.sale_date = %s
-            GROUP BY p.name
-        """, (today_date,))
-        sales_data = cursor.fetchall()
+        columns = ["Тип", "Наименование", "Кол-во", "Сумма (руб)", "Дата"]
+        widths = [100, 200, 100, 150, 150]
 
-        cursor.execute("""
-            SELECT p.name, SUM(t.quantity), SUM(t.total_price)
-            FROM transactions t
-            JOIN products p ON t.product_id = p.id
-            WHERE t.transaction_type = 'purchase' AND t.purchase_date = %s
-            GROUP BY p.name
-        """, (today_date,))
-        purchase_data = cursor.fetchall()
+        def toggle_sort_type():
+            if self.sort_type_state is None:
+                self.sort_type_state = "asc"
+            elif self.sort_type_state == "asc":
+                self.sort_type_state = "desc"
+            else:
+                self.sort_type_state = None
+            self.sort_total_state = None
+            self.sort_quantity_state = None
+            self.sort_name_state = None
+            self.sort_date_state = None
+            load_transactions()
 
-        conn.close()
+        def toggle_sort_total():
+            if self.sort_total_state is None:
+                self.sort_total_state = "asc"
+            elif self.sort_total_state == "asc":
+                self.sort_total_state = "desc"
+            else:
+                self.sort_total_state = None
+            self.sort_type_state = None
+            self.sort_quantity_state = None
+            self.sort_name_state = None
+            self.sort_date_state = None
+            load_transactions()
 
-        report_text = f"Отчет за {today_date}:\n\n"
+        def toggle_sort_quantity():
+            if self.sort_quantity_state is None:
+                self.sort_quantity_state = "asc"
+            elif self.sort_quantity_state == "asc":
+                self.sort_quantity_state = "desc"
+            else:
+                self.sort_quantity_state = None
+            self.sort_type_state = None
+            self.sort_total_state = None
+            self.sort_name_state = None
+            self.sort_date_state = None
+            load_transactions()
 
-        total_sales = 0
-        report_text += "Отчет по продажам:\n"
-        for row in sales_data:
-            product_name, total_quantity, total_sales_value = row
-            report_text += f"{product_name}: {total_quantity} шт. на сумму {total_sales_value} руб.\n"
-            total_sales += total_sales_value
+        def toggle_sort_name():
+            if self.sort_name_state is None:
+                self.sort_name_state = "asc"
+            elif self.sort_name_state == "asc":
+                self.sort_name_state = "desc"
+            else:
+                self.sort_name_state = None
+            self.sort_type_state = None
+            self.sort_total_state = None
+            self.sort_quantity_state = None
+            self.sort_date_state = None
+            load_transactions()
 
-        total_purchases = 0
-        report_text += "\nОтчет по закупкам:\n"
-        for row in purchase_data:
-            product_name, total_quantity, total_purchase_value = row
-            report_text += f"{product_name}: {total_quantity} шт. на сумму {total_purchase_value} руб.\n"
-            total_purchases += total_purchase_value
+        def toggle_sort_date():
+            if self.sort_date_state is None:
+                self.sort_date_state = "desc"
+            elif self.sort_date_state == "desc":
+                self.sort_date_state = "asc"
+            else:
+                self.sort_date_state = None
+            self.sort_type_state = None
+            self.sort_total_state = None
+            self.sort_quantity_state = None
+            self.sort_name_state = None
+            load_transactions()
 
-        profit_or_loss = total_sales - total_purchases
-        report_text += f"\nОбщая прибыль/убыток за день: {profit_or_loss:.2f} руб."
+        ctk.CTkButton(header_frame, text="Тип ⬍", width=widths[0], command=toggle_sort_type).grid(
+            row=0, column=0, padx=10, pady=5, sticky="w"
+        )
+        ctk.CTkButton(header_frame, text="Наименование ⬍", width=widths[1], command=toggle_sort_name).grid(
+            row=0, column=1, padx=10, pady=5, sticky="w"
+        )
+        ctk.CTkButton(header_frame, text="Кол-во ⬍", width=widths[2], command=toggle_sort_quantity).grid(
+            row=0, column=2, padx=10, pady=5, sticky="w"
+        )
+        ctk.CTkButton(header_frame, text="Сумма (руб) ⬍", width=widths[3], command=toggle_sort_total).grid(
+            row=0, column=3, padx=10, pady=5, sticky="w"
+        )
+        ctk.CTkButton(header_frame, text="Дата ⬍", width=widths[4], command=toggle_sort_date).grid(
+            row=0, column=4, padx=10, pady=5, sticky="w"
+        )
 
-        report_label = ctk.CTkLabel(report_window, text=report_text, anchor="w")
-        report_label.pack(pady=10)
+        report_canvas = ctk.CTkCanvas(report_window)
+        report_canvas.pack(side="left", fill="both", expand=True)
 
-        close_button = ctk.CTkButton(report_window, text="Закрыть", command=report_window.destroy)
-        close_button.pack(pady=10)
+        scrollbar = ctk.CTkScrollbar(report_window, orientation="vertical", command=report_canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        report_canvas.configure(yscrollcommand=scrollbar.set)
 
+        scrollable_frame = ctk.CTkFrame(report_canvas)
+        report_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        scrollable_frame.update_idletasks()
+
+        global summary_frame
+        summary_frame = ctk.CTkFrame(report_window)
+        summary_frame.pack(fill="x", padx=10, pady=10)
+
+        def load_transactions():
+            for widget in scrollable_frame.winfo_children():
+                widget.destroy()
+
+            for widget in summary_frame.winfo_children():
+                widget.destroy()
+
+            conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+            cursor = conn.cursor()
+
+            if self.sort_date_state is not None:
+                direction = "DESC" if self.sort_date_state == "desc" else "ASC"
+                order_clause = f"ORDER BY t.sale_date {direction}"
+            elif self.sort_type_state is not None:
+                direction = "ASC" if self.sort_type_state == "asc" else "DESC"
+                order_clause = f"ORDER BY t.transaction_type {direction}"
+            elif self.sort_name_state is not None:
+                direction = "ASC" if self.sort_name_state == "asc" else "DESC"
+                order_clause = f"ORDER BY p.name {direction}"
+            elif self.sort_total_state is not None:
+                direction = "ASC" if self.sort_total_state == "asc" else "DESC"
+                order_clause = f"ORDER BY t.total_price {direction}"
+            elif self.sort_quantity_state is not None:
+                direction = "ASC" if self.sort_quantity_state == "asc" else "DESC"
+                order_clause = f"ORDER BY t.quantity {direction}"
+            else:
+                order_clause = "ORDER BY date ASC"
+
+            cursor.execute(f"""
+                SELECT t.transaction_type, p.name, t.quantity, t.total_price, 
+                       IFNULL(t.sale_date, (SELECT purchase_date FROM purchases WHERE purchases.id = t.purchase_id)) as date
+                FROM transactions t
+                LEFT JOIN products p ON t.product_id = p.id
+                WHERE t.status = 'completed' OR t.transaction_type = 'purchase'
+                {order_clause};
+            """)
+            transactions = cursor.fetchall()
+            conn.close()
+
+            total_income = 0
+            total_expense = 0
+
+            for trans_type, name, quantity, total, date in transactions:
+                row_frame = ctk.CTkFrame(scrollable_frame)
+                row_frame.pack(fill="x", padx=10, pady=2)
+
+                trans_type_display = "Продажа" if trans_type == "sale" else "Закупка"
+                total_display = f"{total:.2f} руб."
+                date_display = date.strftime("%Y-%m-%d %H:%M:%S") if isinstance(date, datetime) else str(date)
+
+                values = [trans_type_display, name, quantity, total_display, date_display]
+
+                for j, value in enumerate(values):
+                    ctk.CTkLabel(row_frame, text=str(value), width=widths[j], anchor="w").grid(
+                        row=0, column=j, padx=10, pady=2, sticky="w"
+                    )
+
+                if trans_type == "sale":
+                    total_income += total
+                elif trans_type == "purchase":
+                    total_expense += total
+
+            scrollable_frame.update_idletasks()
+            report_canvas.config(scrollregion=report_canvas.bbox("all"))
+
+            for widget in summary_frame.winfo_children():
+                widget.destroy()
+
+            ctk.CTkLabel(summary_frame, text=f"Общий доход: {total_income:.2f} руб.", anchor="w").pack(anchor="w",
+                                                                                                       padx=10, pady=2)
+            ctk.CTkLabel(summary_frame, text=f"Общие расходы: {total_expense:.2f} руб.", anchor="w").pack(anchor="w",
+                                                                                                          padx=10,
+                                                                                                          pady=2)
+            ctk.CTkLabel(summary_frame, text=f"Итоговая прибыль: {total_income - total_expense:.2f} руб.",
+                         anchor="w").pack(anchor="w", padx=10, pady=2)
+
+        def on_mouse_wheel(event):
+            report_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        report_window.bind_all("<MouseWheel>", on_mouse_wheel)
+
+        load_transactions()
+
+        def generate_pdf_report():
+            filename = f"Финансовый_отчет_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
+            filepath = os.path.join(os.getcwd(), filename)
+
+            pdfmetrics.registerFont(TTFont('DejaVu', r'C:\Users\Степан\PycharmProjects\diplom\font\DejaVuSans.ttf'))
+            c = canvas.Canvas(filepath, pagesize=A4)
+            width, height = A4
+
+            c.setFont("DejaVu", 16)
+            c.drawString(200, height - 50, "Финансовый отчет")
+
+            c.setFont("DejaVu", 12)
+            report_date = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+            c.drawString(200, height - 70, f"Дата создания: {report_date}")
+
+            data = [["Тип", "Наименование", "Кол-во", "Сумма (руб)", "Дата"]]
+            with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT t.transaction_type, p.name, t.quantity, t.total_price, 
+                           IFNULL(t.sale_date, (SELECT purchase_date FROM purchases WHERE purchases.id = t.purchase_id)) as date
+                    FROM transactions t
+                    LEFT JOIN products p ON t.product_id = p.id
+                    WHERE t.status = 'completed' OR t.transaction_type = 'purchase'
+                """)
+                transactions = cursor.fetchall()
+
+            for trans_type, name, quantity, total, date in transactions:
+                trans_type_display = "Продажа" if trans_type == "sale" else "Закупка"
+                data.append(
+                    [trans_type_display, name, quantity, f"{total:.2f} руб", date.strftime("%d.%m.%Y %H:%M:%S")])
+
+            col_widths = [max(len(str(row[i])) for row in data) * 8 for i in range(len(data[0]))]
+            col_widths = [min(w, 150) for w in col_widths]
+
+            table = Table(data, colWidths=col_widths)
+            style = TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, -1), "DejaVu"),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ])
+            table.setStyle(style)
+
+            table_width = sum(col_widths)
+            if table_width > width - 100:
+                scale_factor = (width - 100) / table_width
+                table._argW = [w * scale_factor for w in col_widths]
+
+            start_y = height - 120
+            row_height = 20
+            table_height = len(data) * row_height
+
+            if start_y - table_height < 50:
+                c.showPage()
+                start_y = height - 50
+
+            table.wrapOn(c, width, height)
+            table.drawOn(c, 50, start_y - table_height)
+            c.save()
+
+            print(f"PDF-отчёт создан: {filepath}")
+
+        load_transactions()
+
+        ctk.CTkButton(report_window, text="Создать PDF-отчёт", command=generate_pdf_report).pack(pady=10)
 
 if __name__ == "__main__":
     app = AccountantDashboard()

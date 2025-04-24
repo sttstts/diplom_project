@@ -2,6 +2,8 @@ import customtkinter as ctk
 import pymysql
 from tkinter import messagebox
 
+from PIL._tkinter_finder import tk
+
 DB_HOST = "localhost"
 DB_USER = "root"
 DB_PASSWORD = "12345678"
@@ -19,6 +21,7 @@ class AdminDashboard(ctk.CTk):
         ctk.CTkButton(self, text="Просмотр пользователей", command=self.view_users).pack(pady=5)
         ctk.CTkButton(self, text="Добавить пользователя", command=self.add_user_window).pack(pady=5)
         ctk.CTkButton(self, text="Удалить пользователя", command=self.delete_user_window).pack(pady=5)
+        ctk.CTkButton(self, text="Журнал действий", command=self.view_log).pack(pady=5)
         ctk.CTkButton(self, text="Выход", command=self.logout).pack(pady=10)
 
     def center_window(self, width, height):
@@ -145,6 +148,49 @@ class AdminDashboard(ctk.CTk):
         user_dropdown.pack(pady=5)
 
         ctk.CTkButton(del_window, text="Удалить", command=confirm_delete).pack(pady=10)
+
+    def view_log(self):
+        log_window = ctk.CTkToplevel(self)
+        log_window.title("Журнал действий")
+        log_window.geometry("600x400")
+
+        log_window.transient(self)
+        log_window.grab_set()
+        log_window.focus_set()
+
+        frame = ctk.CTkFrame(log_window)
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        canvas = tk.Canvas(frame, bg="#f9f9f9")
+        scrollbar = ctk.CTkScrollbar(frame, orientation="vertical", command=canvas.yview)
+        scrollable_frame = ctk.CTkFrame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        conn = self.db_connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, action, timestamp FROM activity_log ORDER BY timestamp DESC")
+        logs = cursor.fetchall()
+        conn.close()
+
+        if logs:
+            for i, (username, action, timestamp) in enumerate(logs, start=1):
+                entry = f"{timestamp.strftime('%d.%m.%Y %H:%M:%S')} — {username}: {action}"
+                ctk.CTkLabel(scrollable_frame, text=entry, anchor="w", justify="left", wraplength=550).pack(fill="x",
+                                                                                                            padx=5,
+                                                                                                            pady=2)
+        else:
+            ctk.CTkLabel(scrollable_frame, text="Журнал пуст.", anchor="center").pack(pady=10)
+
 
 if __name__ == "__main__":
     app = AdminDashboard()
