@@ -2,6 +2,7 @@ import customtkinter as ctk
 import pymysql
 import admin_panel
 
+
 DB_HOST = "localhost"
 DB_USER = "root"
 DB_PASSWORD = "12345678"
@@ -56,15 +57,16 @@ class LoginApp(ctk.CTk):
             self.error_label.configure(text="Неверный логин или пароль")
 
     def open_panel(self, role):
+        username = self.entry_user.get()
+
         if role == "Администратор":
             admin_panel.AdminDashboard().mainloop()
         elif role == "Кладовщик":
             import storekeeper_panel
-            storekeeper_panel.StorekeeperDashboard().mainloop()
+            storekeeper_panel.StorekeeperDashboard(username).mainloop()
         elif role == "Бухгалтер":
             import accountant_panel
-
-            accountant_panel.AccountantDashboard().mainloop()
+            accountant_panel.AccountantDashboard(username).mainloop()
 
 if __name__ == "__main__":
     app = LoginApp()

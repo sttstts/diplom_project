@@ -10,6 +10,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
+from logger import log_action
 
 
 
@@ -19,8 +20,9 @@ DB_PASSWORD = "12345678"
 DB_NAME = "distillery_db"
 
 class AccountantDashboard(ctk.CTk):
-    def __init__(self, cart=None):
+    def __init__(self, username,cart=None):
         super().__init__()
+        self.username = username
         self.title("Окно бухгалтера")
         self.geometry("700x350")
         self.center_window(700, 350)
@@ -159,6 +161,7 @@ class AccountantDashboard(ctk.CTk):
             conn.close()
             self.cart.clear()
             print("Закупка успешно проведена! Ожидает подтверждения кладовщика.")
+            log_action(self.username, f"Бухгалтер {self.username} выполнил(а) закупку товаров (покупка ID: {purchase_id})")
 
         ctk.CTkButton(purchase_window, text="Закупить", command=purchase).pack(pady=5)
 
@@ -267,6 +270,7 @@ class AccountantDashboard(ctk.CTk):
             print(
                 f"Продан товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб."
             )
+            log_action(self.username, f"Бухгалтер {self.username} продал(а) товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб.")
 
             sell_window.destroy()
 
@@ -535,6 +539,7 @@ class AccountantDashboard(ctk.CTk):
             c.save()
 
             print(f"PDF-отчёт создан: {filepath}")
+            log_action(self.username, f"Бухгалтер {self.username} создал финансовый отчёт")
 
         load_transactions()
 

@@ -11,6 +11,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from datetime import datetime
+from logger import log_action
 import os
 
 DB_HOST = "localhost"
@@ -20,8 +21,9 @@ DB_NAME = "distillery_db"
 
 
 class StorekeeperDashboard(ctk.CTk):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
+        self.username = username
         self.title("Окно кладовщика")
         self.geometry("100x100")
         self.center_window(700, 350)
@@ -75,6 +77,7 @@ class StorekeeperDashboard(ctk.CTk):
             barcode = entry_barcode.get()
             result = random.choice(["Продукция легальна!", "Ошибка проверки в ЕГАИС!"])
             result_label.configure(text=result, text_color="green" if "✅" in result else "red")
+            log_action(self.username, f"Проверил штрих-код: результат — {result}")
 
         barcode_window = ctk.CTkToplevel(self)
         barcode_window.title("Проверка в ЕГАИС")
@@ -150,6 +153,8 @@ class StorekeeperDashboard(ctk.CTk):
 
         c.save()
 
+        log_action(self.username, f"Создал отчет по складу: {filename}")
+
         print(f"PDF-отчёт создан: {filepath}")
 
     def view_stock(self):
@@ -197,6 +202,8 @@ class StorekeeperDashboard(ctk.CTk):
 
         scrollable_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
+
+        log_action(self.username, "Просмотрел склад")
 
         def on_mouse_wheel(event):
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
@@ -319,6 +326,7 @@ class StorekeeperDashboard(ctk.CTk):
                         (selected_purchase_id, product_id))
 
                 conn.commit()
+                log_action(self.username, f"Принял поставку #{selected_purchase_id}")
                 print("Поставка принята!")
                 receive_window.destroy()
 
@@ -479,6 +487,11 @@ class StorekeeperDashboard(ctk.CTk):
                 """
                 cursor.execute(update_query, (quantity, item[0]))
                 conn.commit()
+
+                log_action(
+                    self.username,
+                    f"Списал {quantity} шт. товара '{item[1]}' по причине: {reason}"
+                )
 
             write_off_detail_window.destroy()
 
