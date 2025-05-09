@@ -30,10 +30,6 @@ class AccountantDashboard(ctk.CTk):
 
         self.cart = cart if cart is not None else []
 
-        button_width = 200
-        button_height = 120
-        padding = 20
-
         self.purchase_goods_btn = self.create_tile_button("Закупка товара", self.purchase_goods)
         self.purchase_goods_btn.place(relx=0.15, rely=0.25, anchor=W)
 
@@ -250,29 +246,39 @@ class AccountantDashboard(ctk.CTk):
 
             total_price = quantity * price_per_unit
 
-            conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
-            cursor = conn.cursor()
+            try:
+                conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+                cursor = conn.cursor()
 
-            cursor.execute(
-                "INSERT INTO transactions (transaction_type, product_id, quantity, total_price, status, sale_date) "
-                "VALUES ('sale', %s, %s, %s, 'completed', NOW())",
-                (product_data["id"], quantity, total_price)
-            )
+                cursor.execute(
+                    "INSERT INTO transactions (transaction_type, product_id, quantity, total_price, status, sale_date) "
+                    "VALUES ('sale', %s, %s, %s, 'completed', NOW())",
+                    (product_data["id"], quantity, total_price)
+                )
 
-            cursor.execute(
-                "UPDATE stock SET quantity = quantity - %s WHERE product_id = %s",
-                (quantity, product_data["id"])
-            )
+                cursor.execute(
+                    "UPDATE stock SET quantity = quantity - %s WHERE product_id = %s",
+                    (quantity, product_data["id"])
+                )
 
-            conn.commit()
-            conn.close()
+                cursor.execute(
+                    "DELETE FROM stock WHERE product_id = %s AND quantity <= 0",
+                    (product_data["id"],)
+                )
 
-            print(
-                f"Продан товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб."
-            )
-            log_action(self.username, f"Бухгалтер {self.username} продал(а) товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб.")
+                conn.commit()
+                conn.close()
 
-            sell_window.destroy()
+                print(
+                    f"Продан товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб."
+                )
+                log_action(self.username,
+                           f"Бухгалтер {self.username} продал(а) товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб.")
+
+                sell_window.destroy()
+
+            except pymysql.MySQLError as e:
+                print(f"Ошибка базы данных: {e}")
 
         ctk.CTkButton(sell_window, text="Продать", command=process_sale).pack(pady=10)
 

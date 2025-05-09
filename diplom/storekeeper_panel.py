@@ -29,10 +29,6 @@ class StorekeeperDashboard(ctk.CTk):
         self.center_window(700, 350)
         self.resizable(False, False)
 
-        button_width = 200
-        button_height = 120
-        padding = 20
-
         self.view_stock_btn = self.create_tile_button("Просмотр склада", self.view_stock)
         self.view_stock_btn.place(relx=0.05, rely=0.25, anchor=W)
 
@@ -282,7 +278,10 @@ class StorekeeperDashboard(ctk.CTk):
                     (checkbox, quantity))
                 checkbox.pack(anchor="w")
 
-            if not self.complete_button:
+                if self.complete_button:
+                    self.complete_button.destroy()
+                    self.complete_button = None
+
                 self.complete_button = ctk.CTkButton(receive_window, text="Завершить приём поставки",
                                                      command=lambda: self.accept_delivery(selected_delivery_id,
                                                                                           receive_window))
@@ -445,17 +444,27 @@ class StorekeeperDashboard(ctk.CTk):
         confirm_button.pack(padx=10, pady=20)
 
     def confirm_write_off(self, item, quantity_entry, reason_var, write_off_detail_window):
+        if hasattr(self, "write_off_error_label"):
+            self.write_off_error_label.destroy()
+
         try:
             quantity = int(quantity_entry.get())
         except ValueError:
-            ctk.CTkLabel(write_off_detail_window, text="Пожалуйста, введите корректное количество").pack(padx=10,
-                                                                                                         pady=5)
+            self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
+                                                      text="Пожалуйста, введите корректное количество")
+            self.write_off_error_label.pack(padx=10, pady=5)
             return
 
         reason = reason_var.get()
+        if not reason:
+            self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
+                                                      text="Пожалуйста, выберите причину списания")
+            self.write_off_error_label.pack(padx=10, pady=5)
+            return
 
         if quantity <= 0:
-            ctk.CTkLabel(write_off_detail_window, text="Количество должно быть больше 0").pack(padx=10, pady=5)
+            self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text="Количество должно быть больше 0")
+            self.write_off_error_label.pack(padx=10, pady=5)
             return
 
         try:
@@ -466,37 +475,30 @@ class StorekeeperDashboard(ctk.CTk):
                 current_quantity = cursor.fetchone()
 
                 if current_quantity is None:
-                    ctk.CTkLabel(write_off_detail_window, text="Товар не найден в базе").pack(padx=10, pady=5)
+                    self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text="Товар не найден в базе")
+                    self.write_off_error_label.pack(padx=10, pady=5)
                     return
 
                 if current_quantity[0] < quantity:
-                    ctk.CTkLabel(write_off_detail_window, text="Недостаточно товара для списания").pack(padx=10, pady=5)
+                    self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
+                                                              text="Недостаточно товара для списания")
+                    self.write_off_error_label.pack(padx=10, pady=5)
                     return
 
-                query = """
-                INSERT INTO write_offs (stock_id, quantity, reason)
-                VALUES (%s, %s, %s)
-                """
-                cursor.execute(query, (item[0], quantity, reason))
+                new_quantity = current_quantity[0] - quantity
+                cursor.execute("UPDATE stock SET quantity = %s WHERE id = %s", (new_quantity, item[0]))
+
+                cursor.execute("DELETE FROM stock WHERE quantity <= 0")
+
                 conn.commit()
 
-                update_query = """
-                UPDATE stock
-                SET quantity = quantity - %s
-                WHERE id = %s
-                """
-                cursor.execute(update_query, (quantity, item[0]))
-                conn.commit()
+                log_action(self.username, f"Списал товар '{item[1]}' в количестве {quantity}. Причина: {reason}")
+                write_off_detail_window.destroy()
 
-                log_action(
-                    self.username,
-                    f"Списал {quantity} шт. товара '{item[1]}' по причине: {reason}"
-                )
+        except pymysql.MySQLError as e:
+            self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text=f"Ошибка базы данных: {e}")
+            self.write_off_error_label.pack(padx=10, pady=5)
 
-            write_off_detail_window.destroy()
-
-        except Exception as e:
-            ctk.CTkLabel(write_off_detail_window, text=f"Ошибка: {str(e)}").pack(padx=10, pady=5)
 
 if __name__ == "__main__":
     app = StorekeeperDashboard()

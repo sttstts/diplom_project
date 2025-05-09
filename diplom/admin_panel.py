@@ -45,14 +45,62 @@ class AdminDashboard(ctk.CTk):
         return pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
 
     def view_users(self):
+        users_window = ctk.CTkToplevel(self)
+        users_window.title("Список пользователей")
+        users_window.geometry("600x500")
+
+        users_window.transient(self)
+        users_window.grab_set()
+        users_window.focus_set()
+
+        header_frame = ctk.CTkFrame(users_window)
+        header_frame.pack(fill="x", padx=10, pady=5)
+
+        columns = ["ID", "Логин", "Роль"]
+        widths = [50, 250, 200]
+
+        for i, col in enumerate(columns):
+            ctk.CTkLabel(header_frame, text=col, width=widths[i], anchor="w").grid(
+                row=0, column=i, padx=10, pady=5, sticky="w"
+            )
+
+        canvas = ctk.CTkCanvas(users_window)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ctk.CTkScrollbar(users_window, orientation="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollable_frame = ctk.CTkFrame(canvas)
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+        scrollable_frame.update_idletasks()
+
         conn = self.db_connect()
         cursor = conn.cursor()
         cursor.execute("SELECT id, username, role FROM users")
         users = cursor.fetchall()
         conn.close()
 
-        user_list = "\n".join([f"{u[0]}. {u[1]} - {u[2]}" for u in users])
-        messagebox.showinfo("Список пользователей", user_list if user_list else "Пользователей нет.")
+        for user in users:
+            row_frame = ctk.CTkFrame(scrollable_frame)
+            row_frame.pack(fill="x", padx=10, pady=2)
+
+            for j, value in enumerate(user):
+                ctk.CTkLabel(
+                    row_frame,
+                    text=str(value),
+                    width=widths[j],
+                    anchor="w"
+                ).grid(row=0, column=j, padx=10, pady=2, sticky="w")
+
+        scrollable_frame.update_idletasks()
+        canvas.config(scrollregion=canvas.bbox("all"))
+
+        def on_mouse_wheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        users_window.bind_all("<MouseWheel>", on_mouse_wheel)
 
         log_action("admin", "Просмотрел список пользователей")
 
@@ -163,7 +211,7 @@ class AdminDashboard(ctk.CTk):
     def view_log(self):
         log_window = ctk.CTkToplevel(self)
         log_window.title("Журнал действий")
-        log_window.geometry("815x500")
+        log_window.geometry("855x500")
 
         log_window.transient(self)
         log_window.grab_set()
