@@ -12,6 +12,7 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from datetime import datetime
 from logger import log_action
+from barcodes import generate_barcodes_for_batch
 import os
 
 DB_HOST = "localhost"
@@ -49,7 +50,7 @@ class StorekeeperDashboard(ctk.CTk):
 
     def create_tile_button(self, text, command):
         button = ctk.CTkButton(self, text=text, command=command, width=200, height=120, corner_radius=15,
-                               fg_color="#3b8ed0", hover_color="#2971a4", font=('', 15))
+                               fg_color="#3b8ed0", hover_color="#2971a4", font=('', 17))
         button.bind("<Enter>", lambda event, btn=button: btn.configure(fg_color="#2971a4"))
         button.bind("<Leave>", lambda event, btn=button: btn.configure(fg_color="#3b8ed0"))
         return button
@@ -136,21 +137,37 @@ class StorekeeperDashboard(ctk.CTk):
             scale_factor = (width - 100) / table_width
             table._argW = [w * scale_factor for w in col_widths]
 
-        start_y = height - 120
         row_height = 20
-        table_height = len(data) * row_height
+        start_y = height - 120
+        available_height = start_y - 50
+        rows_per_page = int(available_height // row_height)
 
-        if start_y - table_height < 50:
-            c.showPage()
-            start_y = height - 50
+        header = data[0]
+        rows = data[1:]
 
-        table.wrapOn(c, width, height)
-        table.drawOn(c, 50, start_y - table_height)
+        current_y = start_y
+
+        for i in range(0, len(rows), rows_per_page):
+            page_rows = rows[i:i + rows_per_page]
+            page_data = [header] + page_rows
+
+            table = Table(page_data, colWidths=col_widths)
+            table.setStyle(style)
+
+            table.wrapOn(c, width, height)
+            table.drawOn(c, 50, current_y - (len(page_data) * row_height))
+
+            if i + rows_per_page < len(rows):
+                c.showPage()
+                c.setFont("DejaVu", 16)
+                c.drawString(200, height - 50, "Отчет по складу")
+                c.setFont("DejaVu", 12)
+                c.drawString(200, height - 70, f"Дата создания: {report_date}")
+                current_y = height - 120
 
         c.save()
 
         log_action(self.username, f"Создал отчет по складу: {filename}")
-
         print(f"PDF-отчёт создан: {filepath}")
 
     def view_stock(self):
@@ -302,14 +319,38 @@ class StorekeeperDashboard(ctk.CTk):
             return
 
         try:
-            with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
-                cursor = conn.cursor()
+            connection = pymysql.connect(
+                host=DB_HOST,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                database=DB_NAME,
+                cursorclass=pymysql.cursors.DictCursor
+            )
+
+            with connection:
+                cursor = connection.cursor()
 
                 for product_id, quantity in selected_items:
                     cursor.execute("SELECT name, volume, strength, price FROM products WHERE id=%s", (product_id,))
-                    name, volume, strength, unit_price = cursor.fetchone()
+                    result = cursor.fetchone()
+                    if result is None:
+                        print(f"Продукт с id={product_id} не найден")
+                        continue
 
-                    total_price = unit_price * quantity
+                    name = result['name']
+                    volume = result['volume']
+                    strength = result['strength']
+                    unit_price = result['price']
+
+                    # Приведение типов с защитой
+                    try:
+                        volume = float(volume) if volume is not None else 1.0
+                        strength = float(strength) if strength is not None else 1.0
+                    except ValueError:
+                        volume = 1.0
+                        strength = 1.0
+
+                    total_price = float(unit_price) * int(quantity)
 
                     cursor.execute(
                         """INSERT INTO stock (product_id, name, volume, strength, quantity, price) 
@@ -322,9 +363,12 @@ class StorekeeperDashboard(ctk.CTk):
 
                     cursor.execute(
                         "UPDATE transactions SET status='received' WHERE purchase_id=%s AND product_id=%s",
-                        (selected_purchase_id, product_id))
+                        (selected_purchase_id, product_id)
+                    )
 
-                conn.commit()
+                generate_barcodes_for_batch(selected_purchase_id, connection)
+
+                connection.commit()
                 log_action(self.username, f"Принял поставку #{selected_purchase_id}")
                 print("Поставка принята!")
                 receive_window.destroy()
@@ -416,11 +460,11 @@ class StorekeeperDashboard(ctk.CTk):
         ctk.CTkLabel(write_off_detail_window, text=f"Вы выбрали товар: {item[1]}").pack(padx=10, pady=5)
         ctk.CTkLabel(write_off_detail_window, text=f"Количество на складе: {item[4]} шт.").pack(padx=10, pady=5)
 
-        quantity_label = ctk.CTkLabel(write_off_detail_window, text="Введите количество для списания:")
-        quantity_label.pack(padx=10, pady=5)
+        barcode_label = ctk.CTkLabel(write_off_detail_window, text="Введите штрихкод для списания:")
+        barcode_label.pack(padx=10, pady=5)
 
-        quantity_entry = ctk.CTkEntry(write_off_detail_window)
-        quantity_entry.pack(padx=10, pady=5)
+        barcode_entry = ctk.CTkEntry(write_off_detail_window)
+        barcode_entry.pack(padx=10, pady=5)
 
         reason_label = ctk.CTkLabel(write_off_detail_window, text="Выберите причину списания:")
         reason_label.pack(padx=10, pady=5)
@@ -438,63 +482,82 @@ class StorekeeperDashboard(ctk.CTk):
         reason_menu = ctk.CTkOptionMenu(write_off_detail_window, variable=reason_var, values=reasons)
         reason_menu.pack(padx=10, pady=5)
 
-        confirm_button = ctk.CTkButton(write_off_detail_window, text="Подтвердить списание",
-                                       command=lambda: self.confirm_write_off(item, quantity_entry, reason_var,
-                                                                              write_off_detail_window))
+        confirm_button = ctk.CTkButton(
+            write_off_detail_window,
+            text="Подтвердить списание",
+            command=lambda: self.confirm_write_off(item, barcode_entry, reason_var, write_off_detail_window)
+        )
         confirm_button.pack(padx=10, pady=20)
 
-    def confirm_write_off(self, item, quantity_entry, reason_var, write_off_detail_window):
+    def confirm_write_off(self, item, barcode_entry, reason_var, write_off_detail_window):
         if hasattr(self, "write_off_error_label"):
             self.write_off_error_label.destroy()
 
-        try:
-            quantity = int(quantity_entry.get())
-        except ValueError:
+        barcode = barcode_entry.get().strip()
+        reason = reason_var.get()
+
+        if not barcode or len(barcode.split("-")) != 3:
             self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
-                                                      text="Пожалуйста, введите корректное количество")
+                                                      text="Неверный формат штрихкода (ожидается XXX-XXX-XXX)")
             self.write_off_error_label.pack(padx=10, pady=5)
             return
 
-        reason = reason_var.get()
         if not reason:
             self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
                                                       text="Пожалуйста, выберите причину списания")
             self.write_off_error_label.pack(padx=10, pady=5)
             return
 
-        if quantity <= 0:
-            self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text="Количество должно быть больше 0")
-            self.write_off_error_label.pack(padx=10, pady=5)
-            return
-
         try:
+            batch_id_str, product_id_str, bottle_id_str = barcode.split("-")
+            batch_id = int(batch_id_str)
+            product_id = int(product_id_str)
+            bottle_id = int(bottle_id_str)
+
             with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
                 cursor = conn.cursor()
 
-                cursor.execute("SELECT quantity FROM stock WHERE id = %s", (item[0],))
-                current_quantity = cursor.fetchone()
-
-                if current_quantity is None:
+                cursor.execute("SELECT product_id FROM stock WHERE id = %s", (item[0],))
+                stock_product_result = cursor.fetchone()
+                if not stock_product_result:
                     self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text="Товар не найден в базе")
                     self.write_off_error_label.pack(padx=10, pady=5)
                     return
 
-                if current_quantity[0] < quantity:
+                stock_product_id = stock_product_result[0]
+
+                if product_id != stock_product_id:
                     self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
-                                                              text="Недостаточно товара для списания")
+                                                              text="Штрихкод не соответствует выбранному товару")
                     self.write_off_error_label.pack(padx=10, pady=5)
                     return
 
-                new_quantity = current_quantity[0] - quantity
-                cursor.execute("UPDATE stock SET quantity = %s WHERE id = %s", (new_quantity, item[0]))
+                cursor.execute(
+                    "SELECT id FROM barcodes WHERE product_id=%s AND bottle_id=%s AND batch_id=%s",
+                    (product_id, bottle_id, batch_id)
+                )
+                barcode_record = cursor.fetchone()
+
+                if not barcode_record:
+                    self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text="Штрихкод не найден в базе")
+                    self.write_off_error_label.pack(padx=10, pady=5)
+                    return
+
+                cursor.execute("DELETE FROM barcodes WHERE id = %s", (barcode_record[0],))
+
+                cursor.execute("UPDATE stock SET quantity = quantity - 1 WHERE id = %s", (item[0],))
 
                 cursor.execute("DELETE FROM stock WHERE quantity <= 0")
 
                 conn.commit()
 
-                log_action(self.username, f"Списал товар '{item[1]}' в количестве {quantity}. Причина: {reason}")
+                log_action(self.username, f"Списал товар '{item[1]}' (штрихкод: {barcode}) по причине: {reason}")
                 write_off_detail_window.destroy()
 
+        except ValueError:
+            self.write_off_error_label = ctk.CTkLabel(write_off_detail_window,
+                                                      text="Некорректный формат чисел в штрихкоде")
+            self.write_off_error_label.pack(padx=10, pady=5)
         except pymysql.MySQLError as e:
             self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text=f"Ошибка базы данных: {e}")
             self.write_off_error_label.pack(padx=10, pady=5)

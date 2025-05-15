@@ -4,7 +4,8 @@ import customtkinter as ctk
 from tkinter import W, CENTER, E
 from datetime import datetime
 
-from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
@@ -299,7 +300,6 @@ class AccountantDashboard(ctk.CTk):
         header_frame = ctk.CTkFrame(report_window)
         header_frame.pack(fill="x", padx=10, pady=5)
 
-        columns = ["Тип", "Наименование", "Кол-во", "Сумма (руб)", "Дата"]
         widths = [100, 200, 100, 150, 150]
 
         def toggle_sort_type():
@@ -486,17 +486,25 @@ class AccountantDashboard(ctk.CTk):
             filepath = os.path.join(os.getcwd(), filename)
 
             pdfmetrics.registerFont(TTFont('DejaVu', r'C:\Users\Степан\PycharmProjects\diplom\font\DejaVuSans.ttf'))
-            c = canvas.Canvas(filepath, pagesize=A4)
-            width, height = A4
 
-            c.setFont("DejaVu", 16)
-            c.drawString(200, height - 50, "Финансовый отчет")
+            doc = SimpleDocTemplate(filepath, pagesize=A4,
+                                    rightMargin=30, leftMargin=30,
+                                    topMargin=30, bottomMargin=30)
 
-            c.setFont("DejaVu", 12)
+            styles = getSampleStyleSheet()
+            styles["Normal"].fontName = "DejaVu"
+            styles["Heading1"].fontName = "DejaVu"
+
+            elements = []
+
+            elements.append(Paragraph("Финансовый отчет", styles['Heading1']))
+            elements.append(Spacer(1, 12))
             report_date = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-            c.drawString(200, height - 70, f"Дата создания: {report_date}")
+            elements.append(Paragraph(f"Дата создания: {report_date}", styles['Normal']))
+            elements.append(Spacer(1, 12))
 
             data = [["Тип", "Наименование", "Кол-во", "Сумма (руб)", "Дата"]]
+
             with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -510,39 +518,25 @@ class AccountantDashboard(ctk.CTk):
 
             for trans_type, name, quantity, total, date in transactions:
                 trans_type_display = "Продажа" if trans_type == "sale" else "Закупка"
-                data.append(
-                    [trans_type_display, name, quantity, f"{total:.2f} руб", date.strftime("%d.%m.%Y %H:%M:%S")])
+                date_display = date.strftime("%d.%m.%Y %H:%M:%S")
+                data.append([trans_type_display, name, quantity, f"{total:.2f} руб", date_display])
 
-            col_widths = [max(len(str(row[i])) for row in data) * 8 for i in range(len(data[0]))]
-            col_widths = [min(w, 150) for w in col_widths]
+            col_widths = [80, 150, 60, 80, 120]
 
-            table = Table(data, colWidths=col_widths)
-            style = TableStyle([
+            table = Table(data, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("FONTNAME", (0, 0), (-1, -1), "DejaVu"),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
                 ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
-                ("GRID", (0, 0), (-1, -1), 1, colors.black),
-            ])
-            table.setStyle(style)
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+            ]))
 
-            table_width = sum(col_widths)
-            if table_width > width - 100:
-                scale_factor = (width - 100) / table_width
-                table._argW = [w * scale_factor for w in col_widths]
+            elements.append(table)
 
-            start_y = height - 120
-            row_height = 20
-            table_height = len(data) * row_height
-
-            if start_y - table_height < 50:
-                c.showPage()
-                start_y = height - 50
-
-            table.wrapOn(c, width, height)
-            table.drawOn(c, 50, start_y - table_height)
-            c.save()
+            doc.build(elements)
 
             print(f"PDF-отчёт создан: {filepath}")
             log_action(self.username, f"Бухгалтер {self.username} создал финансовый отчёт")

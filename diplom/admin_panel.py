@@ -2,9 +2,7 @@ import customtkinter as ctk
 import pymysql
 from tkinter import messagebox
 from logger import log_action
-from tkinter import ttk
-
-from PIL._tkinter_finder import tk
+from tkinter import W, CENTER, E
 
 DB_HOST = "localhost"
 DB_USER = "root"
@@ -16,16 +14,31 @@ class AdminDashboard(ctk.CTk):
         super().__init__()
         self.username = username
         self.title("Панель Администратора")
-        self.geometry("600x400")
-        self.center_window(600, 400)
+        self.geometry("700x350")
+        self.center_window(700, 350)
+        self.resizable(False, False)
 
-        ctk.CTkLabel(self, text="Управление пользователями", font=("Arial", 18)).pack(pady=10)
+        self.add_user_btn = self.create_tile_button("Добавить пользователя", self.add_user_window)
+        self.add_user_btn.place(relx=0.2, rely=0.25, anchor=W)
 
-        ctk.CTkButton(self, text="Просмотр пользователей", command=self.view_users).pack(pady=5)
-        ctk.CTkButton(self, text="Добавить пользователя", command=self.add_user_window).pack(pady=5)
-        ctk.CTkButton(self, text="Удалить пользователя", command=self.delete_user_window).pack(pady=5)
-        ctk.CTkButton(self, text="Журнал действий", command=self.view_log).pack(pady=5)
-        ctk.CTkButton(self, text="Выход", command=self.logout).pack(pady=10)
+        self.delete_user_btn = self.create_tile_button("Удалить пользователя", self.delete_user_window)
+        self.delete_user_btn.place(relx=0.65, rely=0.25, anchor=CENTER)
+
+        self.view_users_btn = self.create_tile_button("Просмотр пользователей", self.view_users)
+        self.view_users_btn.place(relx=0.05, rely=0.65, anchor=W)
+
+        self.log_btn = self.create_tile_button("Журнал действий", self.view_log)
+        self.log_btn.place(relx=0.5, rely=0.65, anchor=CENTER)
+
+        self.exit_btn = self.create_tile_button("Выход", self.logout)
+        self.exit_btn.place(relx=0.95, rely=0.65, anchor=E)
+
+    def create_tile_button(self, text, command):
+        button = ctk.CTkButton(self, text=text, command=command, width=200, height=120, corner_radius=15,
+                               fg_color="#3b8ed0", hover_color="#2971a4", font=('', 15))
+        button.bind("<Enter>", lambda event, btn=button: btn.configure(fg_color="#2971a4"))
+        button.bind("<Leave>", lambda event, btn=button: btn.configure(fg_color="#3b8ed0"))
+        return button
 
     def center_window(self, width, height):
         self.update_idletasks()

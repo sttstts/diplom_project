@@ -25,11 +25,18 @@ class LoginApp(ctk.CTk):
         self.entry_pass = ctk.CTkEntry(self, show="*")
         self.entry_pass.pack(pady=5)
 
-        self.button_login = ctk.CTkButton(self, text="Войти", command=self.login)
-        self.button_login.pack(pady=10)
+        self.button_login = self.create_tile_button("Войти", self.login)
+        self.button_login.pack(pady=25)
 
         self.error_label = ctk.CTkLabel(self, text="", text_color="red")
         self.error_label.pack()
+
+    def create_tile_button(self, text, command):
+        button = ctk.CTkButton(self, text=text, command=command, width=150, height=34, corner_radius=15,
+                               fg_color="#3b8ed0", hover_color="#2971a4", font=('', 17))
+        button.bind("<Enter>", lambda event, btn=button: btn.configure(fg_color="#2971a4"))
+        button.bind("<Leave>", lambda event, btn=button: btn.configure(fg_color="#3b8ed0"))
+        return button
 
     def center_window(self, width, height):
         self.update_idletasks()
