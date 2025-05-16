@@ -1,7 +1,6 @@
 import customtkinter as ctk
 import tkinter as tk
 import pymysql
-import random
 import re
 from tkinter import W, CENTER, E
 from reportlab.lib.pagesizes import A4
@@ -71,30 +70,73 @@ class StorekeeperDashboard(ctk.CTk):
 
     def check_barcode(self):
         def submit():
-            barcode = entry_barcode.get()
-            result = random.choice(["Продукция легальна!", "Ошибка проверки в ЕГАИС!"])
-            result_label.configure(text=result, text_color="green" if "✅" in result else "red")
-            log_action(self.username, f"Проверил штрих-код: результат — {result}")
+            barcode_value = entry_barcode.get().strip()
+            if not barcode_value:
+                result_label.configure(text="Введите штрих-код!", text_color="red")
+                return
+
+            try:
+                conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+                cursor = conn.cursor()
+
+                query = """
+                    SELECT 
+                        b.batch_id,
+                        b.product_id,
+                        b.bottle_id,
+                        b.barcode,
+                        p.name,
+                        p.volume,
+                        p.strength,
+                        p.price
+                    FROM barcodes b
+                    JOIN products p ON b.product_id = p.id
+                    WHERE b.barcode = %s
+                """
+                cursor.execute(query, (barcode_value,))
+                result = cursor.fetchone()
+                conn.close()
+
+                if result:
+                    batch_id, product_id, bottle_id, barcode, name, volume, strength, price = result
+                    result_text = (
+                        f"Продукция легальна!\n\n"
+                        f"Название: {name}\n"
+                        f"Номер партии: {batch_id}\n"
+                        f"ID бутылки: {bottle_id}\n"
+                        f"Объём: {volume} л\n"
+                        f"Крепость: {strength}°\n"
+                        f"Цена: {price:.2f} руб.\n"
+                        f"Штрихкод: {barcode}"
+                    )
+                    result_label.configure(text=result_text, text_color="green")
+                    log_action(self.username, f"Проверил штрих-код {barcode_value}: продукция легальна")
+                else:
+                    result_label.configure(text="Штрих-код не найден в базе!", text_color="red")
+                    log_action(self.username, f"Проверил штрих-код {barcode_value}: не найден")
+            except pymysql.MySQLError as e:
+                result_label.configure(text=f"Ошибка БД: {e}", text_color="red")
 
         barcode_window = ctk.CTkToplevel(self)
         barcode_window.title("Проверка в ЕГАИС")
-        barcode_window.geometry("300x200")
+        barcode_window.geometry("400x350")
         barcode_window.transient(self)
         barcode_window.grab_set()
         barcode_window.focus_set()
 
-        ctk.CTkLabel(barcode_window, text="Введите или сканируйте штрих-код:").pack()
+        ctk.CTkLabel(barcode_window, text="Введите или сканируйте штрих-код:").pack(pady=5)
         entry_barcode = ctk.CTkEntry(barcode_window)
-        entry_barcode.pack()
-
-        result_label = ctk.CTkLabel(barcode_window, text="")
-        result_label.pack()
+        entry_barcode.pack(pady=5)
 
         ctk.CTkButton(barcode_window, text="Проверить", command=submit).pack(pady=10)
 
+        result_label = ctk.CTkLabel(barcode_window, text="", justify="left", wraplength=360)
+        result_label.pack(pady=10)
+
     def stock_report(self):
         filename = f"Отчет_по_складу_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
-        filepath = os.path.join(os.getcwd(), filename)
+        report_dir = r"C:\Users\Степан\PycharmProjects\diplom\отчёты\склдаской отчёт"
+        filepath = os.path.join(report_dir, filename)
 
         pdfmetrics.registerFont(TTFont('DejaVu', r'C:\Users\Степан\PycharmProjects\diplom\font\DejaVuSans.ttf'))
 
@@ -342,7 +384,6 @@ class StorekeeperDashboard(ctk.CTk):
                     strength = result['strength']
                     unit_price = result['price']
 
-                    # Приведение типов с защитой
                     try:
                         volume = float(volume) if volume is not None else 1.0
                         strength = float(strength) if strength is not None else 1.0

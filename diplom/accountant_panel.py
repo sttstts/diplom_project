@@ -251,6 +251,25 @@ class AccountantDashboard(ctk.CTk):
                 conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
                 cursor = conn.cursor()
 
+                cursor.execute("""
+                    SELECT id, barcode FROM barcodes
+                    WHERE product_id = %s
+                    ORDER BY id ASC
+                    LIMIT %s
+                """, (product_data["id"], quantity))
+                barcode_rows = cursor.fetchall()
+
+                if len(barcode_rows) < quantity:
+                    print("Ошибка: недостаточно штрихкодов для этого товара!")
+                    conn.close()
+                    return
+
+                barcode_ids = [row[0] for row in barcode_rows]
+                barcode_list = [row[1] for row in barcode_rows]
+
+                format_strings = ','.join(['%s'] * len(barcode_ids))
+                cursor.execute(f"DELETE FROM barcodes WHERE id IN ({format_strings})", barcode_ids)
+
                 cursor.execute(
                     "INSERT INTO transactions (transaction_type, product_id, quantity, total_price, status, sale_date) "
                     "VALUES ('sale', %s, %s, %s, 'completed', NOW())",
@@ -270,13 +289,35 @@ class AccountantDashboard(ctk.CTk):
                 conn.commit()
                 conn.close()
 
-                print(
-                    f"Продан товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб."
-                )
                 log_action(self.username,
                            f"Бухгалтер {self.username} продал(а) товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб.")
 
-                sell_window.destroy()
+                result_window = ctk.CTkToplevel(self)
+                result_window.title("Продажа завершена")
+                result_window.geometry("400x300")
+                result_window.transient(self)
+                result_window.grab_set()
+
+                ctk.CTkLabel(result_window, text=f"Продан товар: {product_data['name']}").pack(pady=5)
+                ctk.CTkLabel(result_window, text=f"Количество: {quantity} шт.").pack(pady=5)
+                ctk.CTkLabel(result_window, text="Списанные штрихкоды:").pack(pady=5)
+
+                scroll_frame = ctk.CTkScrollableFrame(result_window, height=180, width=360)
+                scroll_frame.pack(padx=10, pady=5, fill="both", expand=False)
+
+                text_box = ctk.CTkTextbox(scroll_frame, width=320)
+                text_box.pack(padx=5, pady=5, fill="both", expand=True)
+
+                text_box.configure(state="normal")
+                text_box.insert("1.0", '\n'.join(barcode_list))
+                text_box.configure(state="disabled")
+
+                def close_all():
+                    result_window.destroy()
+                    sell_window.destroy()
+
+                ctk.CTkButton(result_window, text="Закрыть", command=close_all).pack(pady=10)
+
 
             except pymysql.MySQLError as e:
                 print(f"Ошибка базы данных: {e}")
@@ -483,7 +524,10 @@ class AccountantDashboard(ctk.CTk):
 
         def generate_pdf_report():
             filename = f"Финансовый_отчет_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
-            filepath = os.path.join(os.getcwd(), filename)
+            report_dir = r"C:\Users\Степан\PycharmProjects\diplom\отчёты\финансовые отчёты"
+            if not os.path.exists(report_dir):
+                os.makedirs(report_dir)
+            filepath = os.path.join(report_dir, filename)
 
             pdfmetrics.registerFont(TTFont('DejaVu', r'C:\Users\Степан\PycharmProjects\diplom\font\DejaVuSans.ttf'))
 
