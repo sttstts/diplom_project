@@ -29,6 +29,8 @@ class StorekeeperDashboard(ctk.CTk):
         self.center_window(700, 350)
         self.resizable(False, False)
 
+        self.validate_50 = self.register(self.limit_50_chars)
+
         self.view_stock_btn = self.create_tile_button("Просмотр склада", self.view_stock)
         self.view_stock_btn.place(relx=0.05, rely=0.25, anchor=W)
 
@@ -125,7 +127,7 @@ class StorekeeperDashboard(ctk.CTk):
         barcode_window.focus_set()
 
         ctk.CTkLabel(barcode_window, text="Введите или сканируйте штрих-код:").pack(pady=5)
-        entry_barcode = ctk.CTkEntry(barcode_window)
+        entry_barcode = ctk.CTkEntry(barcode_window, validate="key", validatecommand=(self.validate_50, "%P"))
         entry_barcode.pack(pady=5)
 
         ctk.CTkButton(barcode_window, text="Проверить", command=submit).pack(pady=10)

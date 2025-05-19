@@ -15,14 +15,16 @@ class LoginApp(ctk.CTk):
         self.geometry("600x400")
         self.center_window(600, 400)
 
+        self.validate_50 = self.register(self.limit_50_chars)
+
         self.label_user = ctk.CTkLabel(self, text="Логин:")
         self.label_user.pack(pady=5)
-        self.entry_user = ctk.CTkEntry(self)
+        self.entry_user = ctk.CTkEntry(self, validate="key", validatecommand=(self.validate_50, "%P"))
         self.entry_user.pack(pady=5)
 
         self.label_pass = ctk.CTkLabel(self, text="Пароль:")
         self.label_pass.pack(pady=5)
-        self.entry_pass = ctk.CTkEntry(self, show="*")
+        self.entry_pass = ctk.CTkEntry(self, show="*", validate="key", validatecommand=(self.validate_50, "%P"))
         self.entry_pass.pack(pady=5)
 
         self.button_login = self.create_tile_button("Войти", self.login)
@@ -74,6 +76,10 @@ class LoginApp(ctk.CTk):
         elif role == "Бухгалтер":
             import accountant_panel
             accountant_panel.AccountantDashboard(username).mainloop()
+
+    def limit_50_chars(self, new_value):
+        return len(new_value) <= 50
+
 
 if __name__ == "__main__":
     app = LoginApp()

@@ -29,6 +29,8 @@ class AccountantDashboard(ctk.CTk):
         self.center_window(700, 350)
         self.resizable(False, False)
 
+        self.validate_50 = self.register(self.limit_50_chars)
+
         self.cart = cart if cart is not None else []
 
         self.purchase_goods_btn = self.create_tile_button("Закупка товара", self.purchase_goods)
@@ -104,12 +106,18 @@ class AccountantDashboard(ctk.CTk):
         cart_listbox = ctk.CTkTextbox(purchase_window, height=100)
         cart_listbox.pack()
 
+        total_price_label = ctk.CTkLabel(purchase_window, text="Итоговая сумма: 0.00 руб.")
+        total_price_label.pack(pady=5)
+
+        def update_cart_total():
+            total = 0
+            for item in self.cart:
+                total += item["quantity"] * float(item["price"])
+            total_price_label.configure(text=f"Итоговая сумма: {total:.2f} руб.")
+
         def add_to_cart():
             selected = self.selected_product.get().strip()
             quantity = entry_quantity.get().strip()
-
-            print(f"Выбранный товар: '{selected}'")
-            print(f"Доступные товары: {list(self.product_dict.keys())}")
 
             if not selected:
                 print("Ошибка: не выбран товар!")
@@ -127,6 +135,10 @@ class AccountantDashboard(ctk.CTk):
 
                 cart_listbox.insert("end", f"{product_data['name']} - {quantity} шт.\n")
                 print(f"Товар добавлен в корзину: {product_data['name']} - {quantity} шт.")
+
+                entry_quantity.delete(0, "end")
+
+                update_cart_total()
             else:
                 print("Ошибка: товар не найден!")
 
@@ -157,8 +169,11 @@ class AccountantDashboard(ctk.CTk):
             conn.commit()
             conn.close()
             self.cart.clear()
+            cart_listbox.delete("1.0", "end")
+            update_cart_total()
             print("Закупка успешно проведена! Ожидает подтверждения кладовщика.")
-            log_action(self.username, f"Бухгалтер {self.username} выполнил(а) закупку товаров (покупка ID: {purchase_id})")
+            log_action(self.username,
+                       f"Бухгалтер {self.username} выполнил(а) закупку товаров (покупка ID: {purchase_id})")
 
         ctk.CTkButton(purchase_window, text="Закупить", command=purchase).pack(pady=5)
 
@@ -588,6 +603,9 @@ class AccountantDashboard(ctk.CTk):
         load_transactions()
 
         ctk.CTkButton(report_window, text="Создать PDF-отчёт", command=generate_pdf_report).pack(pady=10)
+
+    def limit_50_chars(self, new_value):
+        return len(new_value) <= 50
 
 if __name__ == "__main__":
     app = AccountantDashboard()

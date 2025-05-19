@@ -18,6 +18,8 @@ class AdminDashboard(ctk.CTk):
         self.center_window(700, 350)
         self.resizable(False, False)
 
+        self.validate_50 = self.register(self.limit_50_chars)
+
         self.add_user_btn = self.create_tile_button("Добавить пользователя", self.add_user_window)
         self.add_user_btn.place(relx=0.2, rely=0.25, anchor=W)
 
@@ -123,11 +125,11 @@ class AdminDashboard(ctk.CTk):
         add_window.geometry("300x250")
 
         ctk.CTkLabel(add_window, text="Логин:").pack()
-        entry_username = ctk.CTkEntry(add_window)
+        entry_username = ctk.CTkEntry(add_window, validate="key", validatecommand=(self.validate_50, "%P"))
         entry_username.pack()
 
         ctk.CTkLabel(add_window, text="Пароль:").pack()
-        entry_password = ctk.CTkEntry(add_window, show="*")
+        entry_password = ctk.CTkEntry(add_window, show="*", validate="key", validatecommand=(self.validate_50, "%P"))
         entry_password.pack()
 
         ctk.CTkLabel(add_window, text="Роль:").pack()
@@ -280,6 +282,9 @@ class AdminDashboard(ctk.CTk):
         log_window.bind_all("<MouseWheel>", on_mouse_wheel)
 
         log_action(self.username, "Просмотрел журнал действий")
+
+    def limit_50_chars(self, new_value):
+        return len(new_value) <= 50
 
 if __name__ == "__main__":
     app = AdminDashboard()
