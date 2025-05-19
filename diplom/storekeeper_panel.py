@@ -2,7 +2,7 @@ import customtkinter as ctk
 import tkinter as tk
 import pymysql
 import re
-from tkinter import W, CENTER, E
+from tkinter import W, CENTER, E, messagebox
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
@@ -212,26 +212,46 @@ class StorekeeperDashboard(ctk.CTk):
         c.save()
 
         log_action(self.username, f"Создал отчет по складу: {filename}")
-        print(f"PDF-отчёт создан: {filepath}")
+        messagebox.showinfo("Успех", f"PDF-отчёт создан: {filepath}")
 
     def view_stock(self):
         stock_window = ctk.CTkToplevel(self)
         stock_window.title("Склад")
-        stock_window.geometry("815x500")
+        stock_window.geometry("930x550")
 
         stock_window.transient(self)
         stock_window.grab_set()
         stock_window.focus_set()
 
-        header_frame = ctk.CTkFrame(stock_window)
-        header_frame.pack(fill="x", padx=10, pady=5)
+        # --- Панель фильтрации ---
+        filter_frame = ctk.CTkFrame(stock_window)
+        filter_frame.pack(fill="x", padx=10, pady=(10, 5))
 
-        columns = ["ID", "Наименование", "Объем (L)", "Крепость (%)", "Количество (шт)", "Цена"]
-        widths = [50, 200, 100, 100, 100, 100]
+        name_entry = ctk.CTkEntry(filter_frame, placeholder_text="Поиск по наименованию")
+        name_entry.grid(row=0, column=0, padx=5)
+
+        purchase_entry = ctk.CTkEntry(filter_frame, placeholder_text="Номер поставки")
+        purchase_entry.grid(row=0, column=1, padx=5)
+
+        search_button = ctk.CTkButton(filter_frame, text="Поиск", command=lambda: update_table())
+        search_button.grid(row=0, column=2, padx=5)
+
+        reset_button = ctk.CTkButton(filter_frame, text="Сброс", command=lambda: update_table(reset=True))
+        reset_button.grid(row=0, column=3, padx=5)
+
+        # --- Заголовки таблицы ---
+        header_frame = ctk.CTkFrame(stock_window)
+        header_frame.pack(fill="x", padx=10, pady=(0, 5))
+
+        columns = ["ID", "Наименование", "Объем (L)", "Крепость (%)", "Количество (шт)", "Цена", "Поставка"]
+        widths = [50, 200, 100, 100, 100, 100, 100]
 
         for i, col in enumerate(columns):
-            ctk.CTkLabel(header_frame, text=col, width=widths[i], anchor="w").grid(row=0, column=i, padx=10, pady=5, sticky="w")
+            ctk.CTkLabel(header_frame, text=col, width=widths[i], anchor="w").grid(
+                row=0, column=i, padx=10, pady=5, sticky="w"
+            )
 
+        # --- Область прокрутки ---
         canvas = ctk.CTkCanvas(stock_window)
         canvas.pack(side="left", fill="both", expand=True)
 
@@ -242,30 +262,50 @@ class StorekeeperDashboard(ctk.CTk):
         scrollable_frame = ctk.CTkFrame(canvas)
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
 
-        scrollable_frame.update_idletasks()
+        def update_table(reset=False):
+            for widget in scrollable_frame.winfo_children():
+                widget.destroy()
 
-        with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, name, volume, strength, quantity, price FROM stock")
-            items = cursor.fetchall()
+            name_filter = name_entry.get().strip()
+            purchase_filter = purchase_entry.get().strip()
 
-        for i, item in enumerate(items):
-            row_frame = ctk.CTkFrame(scrollable_frame)
-            row_frame.pack(fill="x", padx=10, pady=2)
+            query = "SELECT id, name, volume, strength, quantity, price, purchases_id FROM stock WHERE 1=1"
+            params = []
 
-            for j, value in enumerate(item):
-                text = f"{value:.2f} руб." if j == 5 else str(value)
-                ctk.CTkLabel(row_frame, text=text, width=widths[j], anchor="w").grid(row=0, column=j, padx=10, pady=2, sticky="w")
+            if not reset:
+                if name_filter:
+                    query += " AND name LIKE %s"
+                    params.append(f"%{name_filter}%")
+                if purchase_filter.isdigit():
+                    query += " AND purchases_id = %s"
+                    params.append(purchase_filter)
 
-        scrollable_frame.update_idletasks()
-        canvas.config(scrollregion=canvas.bbox("all"))
+            with pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                items = cursor.fetchall()
 
-        log_action(self.username, "Просмотрел склад")
+            for i, item in enumerate(items):
+                row_frame = ctk.CTkFrame(scrollable_frame)
+                row_frame.pack(fill="x", padx=10, pady=2)
+
+                for j, value in enumerate(item):
+                    text = f"{value:.2f} руб." if j == 5 else str(value)
+                    ctk.CTkLabel(row_frame, text=text, width=widths[j], anchor="w").grid(
+                        row=0, column=j, padx=10, pady=2, sticky="w"
+                    )
+
+            scrollable_frame.update_idletasks()
+            canvas.config(scrollregion=canvas.bbox("all"))
+
+        update_table()
 
         def on_mouse_wheel(event):
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
         stock_window.bind_all("<MouseWheel>", on_mouse_wheel)
+
+        log_action(self.username, "Просмотрел склад с фильтрацией")
 
     def receive_goods(self):
         receive_window = ctk.CTkToplevel(self)
@@ -349,7 +389,7 @@ class StorekeeperDashboard(ctk.CTk):
                 self.complete_button.pack(pady=20)
 
         except pymysql.MySQLError as e:
-            print(f"Ошибка MySQL: {e}")
+            messagebox.showinfo("Ошибка", f"Ошибка MySQL: {e}")
 
         finally:
             if conn:
@@ -378,7 +418,7 @@ class StorekeeperDashboard(ctk.CTk):
                     cursor.execute("SELECT name, volume, strength, price FROM products WHERE id=%s", (product_id,))
                     result = cursor.fetchone()
                     if result is None:
-                        print(f"Продукт с id={product_id} не найден")
+                        messagebox.showinfo("Ошибка", f"Продукт с id={product_id} не найден")
                         continue
 
                     name = result['name']
@@ -396,12 +436,12 @@ class StorekeeperDashboard(ctk.CTk):
                     total_price = float(unit_price) * int(quantity)
 
                     cursor.execute(
-                        """INSERT INTO stock (product_id, name, volume, strength, quantity, price) 
-                           VALUES (%s, %s, %s, %s, %s, %s) 
+                        """INSERT INTO stock (product_id, name, volume, strength, quantity, price, purchases_id) 
+                           VALUES (%s, %s, %s, %s, %s, %s, %s) 
                            ON DUPLICATE KEY UPDATE 
                            quantity = quantity + VALUES(quantity), 
                            price = VALUES(price)""",
-                        (product_id, name, volume, strength, quantity, total_price)
+                        (product_id, name, volume, strength, quantity, total_price, selected_purchase_id)
                     )
 
                     cursor.execute(
@@ -413,11 +453,11 @@ class StorekeeperDashboard(ctk.CTk):
 
                 connection.commit()
                 log_action(self.username, f"Принял поставку #{selected_purchase_id}")
-                print("Поставка принята!")
+                messagebox.showinfo("Успех", "Поставка принята!")
                 receive_window.destroy()
 
         except pymysql.MySQLError as e:
-            print(f"Ошибка MySQL: {e}")
+            messagebox.showinfo("Ошибка", f"Ошибка MySQL: {e}")
 
     def write_off_goods(self):
         write_off_window = ctk.CTkToplevel(self)
@@ -594,6 +634,7 @@ class StorekeeperDashboard(ctk.CTk):
 
                 conn.commit()
 
+                messagebox.showinfo("Успех", f"Списан товар '{item[1]}' (штрихкод: {barcode}) по причине: {reason}")
                 log_action(self.username, f"Списал товар '{item[1]}' (штрихкод: {barcode}) по причине: {reason}")
                 write_off_detail_window.destroy()
 
@@ -604,6 +645,9 @@ class StorekeeperDashboard(ctk.CTk):
         except pymysql.MySQLError as e:
             self.write_off_error_label = ctk.CTkLabel(write_off_detail_window, text=f"Ошибка базы данных: {e}")
             self.write_off_error_label.pack(padx=10, pady=5)
+
+    def limit_50_chars(self, new_value):
+        return len(new_value) <= 50
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import os
 import pymysql
 import customtkinter as ctk
-from tkinter import W, CENTER, E
+from tkinter import W, CENTER, E, messagebox
 from datetime import datetime
 
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -83,7 +83,7 @@ class AccountantDashboard(ctk.CTk):
         conn.close()
 
         if not products:
-            print("Ошибка: в базе данных нет товаров!")
+            messagebox.showinfo("ошибка", "В базе данных нет товаров.")
             return
 
         self.product_dict = {f"{p[1]} (Цена: {p[2]})": {"id": p[0], "name": p[1], "price": p[2]} for p in products}
@@ -120,11 +120,11 @@ class AccountantDashboard(ctk.CTk):
             quantity = entry_quantity.get().strip()
 
             if not selected:
-                print("Ошибка: не выбран товар!")
+                messagebox.showinfo("Ошибка", "Не выбран товар.")
                 return
 
             if not quantity.isdigit() or int(quantity) <= 0:
-                print("Ошибка: введите корректное количество!")
+                messagebox.showinfo("Ошибка", "Введите корректное количество.")
                 return
 
             product_data = self.product_dict.get(selected)
@@ -134,19 +134,18 @@ class AccountantDashboard(ctk.CTk):
                                   "price": product_data["price"], "quantity": int(quantity)})
 
                 cart_listbox.insert("end", f"{product_data['name']} - {quantity} шт.\n")
-                print(f"Товар добавлен в корзину: {product_data['name']} - {quantity} шт.")
 
                 entry_quantity.delete(0, "end")
 
                 update_cart_total()
             else:
-                print("Ошибка: товар не найден!")
+                messagebox.showinfo("Ошибка", "Товар не найден.")
 
         ctk.CTkButton(purchase_window, text="Добавить в корзину", command=add_to_cart).pack(pady=5)
 
         def purchase():
             if not self.cart:
-                print("Корзина пуста, невозможно выполнить закупку!")
+                messagebox.showinfo("Ошибка", "Корзина пуста, невозможно выполнить покупку.")
                 return
 
             conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
@@ -171,7 +170,7 @@ class AccountantDashboard(ctk.CTk):
             self.cart.clear()
             cart_listbox.delete("1.0", "end")
             update_cart_total()
-            print("Закупка успешно проведена! Ожидает подтверждения кладовщика.")
+            messagebox.showinfo("Успех", "Закупка успешно проведена! Ожидает подтверждения кладовщика.")
             log_action(self.username,
                        f"Бухгалтер {self.username} выполнил(а) закупку товаров (покупка ID: {purchase_id})")
 
@@ -192,7 +191,7 @@ class AccountantDashboard(ctk.CTk):
         conn.close()
 
         if not products:
-            print("Ошибка: в базе данных нет товаров!")
+            messagebox.showinfo("Ошибка", "В базе данных нет товаров!")
             return
 
         self.product_dict = {
@@ -221,7 +220,7 @@ class AccountantDashboard(ctk.CTk):
         quantity_entry.pack()
 
         ctk.CTkLabel(sell_window, text="Цена за единицу:").pack()
-        price_entry = ctk.CTkEntry(sell_window)
+        price_entry = ctk.CTkEntry(sell_window, validate="key", validatecommand=(self.validate_50, "%P"))
         price_entry.pack()
 
         total_price_label = ctk.CTkLabel(sell_window, text="Итоговая сумма: 0.00")
@@ -250,14 +249,14 @@ class AccountantDashboard(ctk.CTk):
             price_per_unit = price_entry.get().strip()
 
             if not quantity.isdigit() or int(quantity) <= 0:
-                print("Ошибка: введите корректное количество!")
+                messagebox.showinfo("Ошибка", "Введите корректное количество.")
                 return
 
             quantity = int(quantity)
             price_per_unit = float(price_per_unit)
 
             if quantity > product_data["stock"]:
-                print("Ошибка: недостаточно товара на складе!")
+                messagebox.showinfo("Ошибка", "недостаточно товаров на складе.")
                 return
 
             total_price = quantity * price_per_unit
@@ -275,7 +274,7 @@ class AccountantDashboard(ctk.CTk):
                 barcode_rows = cursor.fetchall()
 
                 if len(barcode_rows) < quantity:
-                    print("Ошибка: недостаточно штрихкодов для этого товара!")
+                    messagebox.showinfo("Ошибка", "Недостаточно штрихкодов для этого товара.")
                     conn.close()
                     return
 
@@ -304,6 +303,7 @@ class AccountantDashboard(ctk.CTk):
                 conn.commit()
                 conn.close()
 
+                messagebox.showinfo("Успех", f"Товар продан: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб.")
                 log_action(self.username,
                            f"Бухгалтер {self.username} продал(а) товар: {product_data['name']} - {quantity} шт. по {price_per_unit} руб. Итог: {total_price} руб.")
 
@@ -335,7 +335,7 @@ class AccountantDashboard(ctk.CTk):
 
 
             except pymysql.MySQLError as e:
-                print(f"Ошибка базы данных: {e}")
+                messagebox.showinfo("Ошибка", f"Ошибка базы данных: {e}")
 
         ctk.CTkButton(sell_window, text="Продать", command=process_sale).pack(pady=10)
 
@@ -439,6 +439,23 @@ class AccountantDashboard(ctk.CTk):
             row=0, column=4, padx=10, pady=5, sticky="w"
         )
 
+        # --- Добавляем фильтры ---
+        search_name = ctk.CTkEntry(header_frame, placeholder_text="Поиск по наименованию")
+        search_name.grid(row=1, column=0, padx=10, pady=5, sticky="w", columnspan=2)
+
+        date_from_entry = ctk.CTkEntry(header_frame, placeholder_text="Дата от (ГГГГ-ММ-ДД)")
+        date_from_entry.grid(row=1, column=2, padx=10, pady=5, sticky="w")
+
+        date_to_entry = ctk.CTkEntry(header_frame, placeholder_text="Дата до (ГГГГ-ММ-ДД)")
+        date_to_entry.grid(row=1, column=3, padx=10, pady=5, sticky="w")
+
+        def apply_filters():
+            load_transactions()
+
+        ctk.CTkButton(header_frame, text="Поиск", command=apply_filters).grid(row=1, column=4, padx=10, pady=5,
+                                                                              sticky="w")
+        # ---------------------------
+
         report_canvas = ctk.CTkCanvas(report_window)
         report_canvas.pack(side="left", fill="both", expand=True)
 
@@ -464,6 +481,33 @@ class AccountantDashboard(ctk.CTk):
             conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
             cursor = conn.cursor()
 
+            # Получаем фильтры из полей
+            name_filter = search_name.get().strip()
+            date_from = date_from_entry.get().strip()
+            date_to = date_to_entry.get().strip()
+
+            filters = []
+            params = []
+
+            if name_filter:
+                filters.append("p.name LIKE %s")
+                params.append(f"%{name_filter}%")
+
+            if date_from:
+                filters.append(
+                    """(IFNULL(t.sale_date, (SELECT purchase_date FROM purchases WHERE purchases.id = t.purchase_id)) >= %s)""")
+                params.append(date_from)
+
+            if date_to:
+                filters.append(
+                    """(IFNULL(t.sale_date, (SELECT purchase_date FROM purchases WHERE purchases.id = t.purchase_id)) <= %s)""")
+                params.append(date_to)
+
+            where_clause = " AND ".join(filters)
+            if where_clause:
+                where_clause = " AND " + where_clause
+
+            # Определяем порядок сортировки
             if self.sort_date_state is not None:
                 direction = "DESC" if self.sort_date_state == "desc" else "ASC"
                 order_clause = f"ORDER BY t.sale_date {direction}"
@@ -487,9 +531,11 @@ class AccountantDashboard(ctk.CTk):
                        IFNULL(t.sale_date, (SELECT purchase_date FROM purchases WHERE purchases.id = t.purchase_id)) as date
                 FROM transactions t
                 LEFT JOIN products p ON t.product_id = p.id
-                WHERE t.status = 'completed' OR t.transaction_type = 'purchase'
+                WHERE (t.status = 'completed' OR t.transaction_type = 'purchase')
+                {where_clause}
                 {order_clause};
-            """)
+            """, params)
+
             transactions = cursor.fetchall()
             conn.close()
 
@@ -597,7 +643,7 @@ class AccountantDashboard(ctk.CTk):
 
             doc.build(elements)
 
-            print(f"PDF-отчёт создан: {filepath}")
+            messagebox.showinfo("Успех", f"PDF-отчёт создан: {filepath}")
             log_action(self.username, f"Бухгалтер {self.username} создал финансовый отчёт")
 
         load_transactions()

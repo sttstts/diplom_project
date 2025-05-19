@@ -3,6 +3,7 @@ import pymysql
 from tkinter import messagebox
 from logger import log_action
 from tkinter import W, CENTER, E
+from datetime import datetime
 
 DB_HOST = "localhost"
 DB_USER = "root"
@@ -226,22 +227,94 @@ class AdminDashboard(ctk.CTk):
     def view_log(self):
         log_window = ctk.CTkToplevel(self)
         log_window.title("Журнал действий")
-        log_window.geometry("855x500")
+        log_window.geometry("950x600")
 
         log_window.transient(self)
         log_window.grab_set()
         log_window.focus_set()
 
+        search_frame = ctk.CTkFrame(log_window)
+        search_frame.pack(fill="x", padx=10, pady=(10, 5))
+
+        username_entry = ctk.CTkEntry(search_frame, placeholder_text="Имя пользователя")
+        username_entry.pack(side="left", padx=5)
+
+        date_from_entry = ctk.CTkEntry(search_frame, placeholder_text="От (дд.мм.гггг)")
+        date_from_entry.pack(side="left", padx=5)
+
+        date_to_entry = ctk.CTkEntry(search_frame, placeholder_text="До (дд.мм.гггг)")
+        date_to_entry.pack(side="left", padx=5)
+
+        def fetch_logs():
+            for widget in scrollable_frame.winfo_children():
+                widget.destroy()
+
+            query = "SELECT id, username, action, timestamp FROM activity_log WHERE 1=1"
+            params = []
+
+            username = username_entry.get().strip()
+            date_from = date_from_entry.get().strip()
+            date_to = date_to_entry.get().strip()
+
+            if username:
+                query += " AND username LIKE %s"
+                params.append(f"%{username}%")
+
+            if date_from:
+                try:
+                    date_from_obj = datetime.strptime(date_from, "%d.%m.%Y")
+                    query += " AND timestamp >= %s"
+                    params.append(date_from_obj)
+                except ValueError:
+                    ctk.CTkLabel(scrollable_frame, text="Неверный формат даты 'От'", text_color="red").pack()
+                    return
+
+            if date_to:
+                try:
+                    date_to_obj = datetime.strptime(date_to, "%d.%m.%Y")
+                    date_to_obj = date_to_obj.replace(hour=23, minute=59, second=59)
+                    query += " AND timestamp <= %s"
+                    params.append(date_to_obj)
+                except ValueError:
+                    ctk.CTkLabel(scrollable_frame, text="Неверный формат даты 'До'", text_color="red").pack()
+                    return
+
+            query += " ORDER BY timestamp DESC"
+
+            conn = self.db_connect()
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            logs = cursor.fetchall()
+            conn.close()
+
+            for i, log in enumerate(logs):
+                row_frame = ctk.CTkFrame(scrollable_frame)
+                row_frame.pack(fill="x", padx=10, pady=2)
+
+                id_, username, action, timestamp = log
+                values = [id_, username, action, timestamp.strftime("%d.%m.%Y %H:%M:%S")]
+
+                for j, value in enumerate(values):
+                    ctk.CTkLabel(row_frame, text=str(value), width=widths[j], anchor="w", justify="left",
+                                 wraplength=widths[j] - 10).grid(
+                        row=0, column=j, padx=10, pady=2, sticky="w"
+                    )
+
+            scrollable_frame.update_idletasks()
+            canvas.config(scrollregion=canvas.bbox("all"))
+
+        search_button = ctk.CTkButton(search_frame, text="Поиск", command=fetch_logs)
+        search_button.pack(side="left", padx=5)
+
         header_frame = ctk.CTkFrame(log_window)
         header_frame.pack(fill="x", padx=10, pady=5)
 
         columns = ["ID", "Пользователь", "Действие", "Время"]
-        widths = [50, 150, 415, 150]
+        widths = [50, 150, 415, 200]
 
         for i, col in enumerate(columns):
             ctk.CTkLabel(header_frame, text=col, width=widths[i], anchor="w").grid(row=0, column=i, padx=10, pady=5,
                                                                                    sticky="w")
-
         canvas = ctk.CTkCanvas(log_window)
         canvas.pack(side="left", fill="both", expand=True)
 
@@ -253,33 +326,14 @@ class AdminDashboard(ctk.CTk):
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
 
         scrollable_frame.update_idletasks()
-
-        conn = self.db_connect()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, username, action, timestamp FROM activity_log ORDER BY timestamp DESC")
-        logs = cursor.fetchall()
-        conn.close()
-
-        for i, log in enumerate(logs):
-            row_frame = ctk.CTkFrame(scrollable_frame)
-            row_frame.pack(fill="x", padx=10, pady=2)
-
-            id_, username, action, timestamp = log
-            values = [id_, username, action, timestamp.strftime("%d.%m.%Y %H:%M:%S")]
-
-            for j, value in enumerate(values):
-                ctk.CTkLabel(row_frame, text=str(value), width=widths[j], anchor="w", justify="left",
-                             wraplength=widths[j] - 10).grid(
-                    row=0, column=j, padx=10, pady=2, sticky="w"
-                )
-
-        scrollable_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
 
         def on_mouse_wheel(event):
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
         log_window.bind_all("<MouseWheel>", on_mouse_wheel)
+
+        fetch_logs()
 
         log_action(self.username, "Просмотрел журнал действий")
 
